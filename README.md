@@ -31,6 +31,7 @@ npm.cmd run scan
 ```powershell
 npm.cmd run scan       # run one scan
 npm.cmd run daemon     # run forever for VPS/pm2/systemd
+npm.cmd run server     # run scanner plus local HUD control API
 npm.cmd run positions  # inspect paper positions
 npm.cmd run ws:test    # verify Solana WebSocket connectivity
 npm.cmd run check      # syntax check
@@ -66,6 +67,7 @@ The HUD is a static dashboard in `public/`. It expects Nginx to serve:
 /axiombot/state.json   -> /var/www/axiombot/state.json
 /axiombot/api/state.json
 /axiombot/api/health.json
+/axiombot/api/strategy-config
 ```
 
 An example Nginx location snippet is included at `deploy/nginx-axiombot.conf`.
@@ -85,6 +87,7 @@ Set this in the VPS `.env` so the scanner writes state where Nginx can read it:
 ```dotenv
 STATE_FILE=/var/www/axiombot/state.json
 HEALTH_FILE=/var/www/axiombot/health.json
+HUD_CONTROL_PIN=change-me
 ```
 
 ## Read API
@@ -97,6 +100,14 @@ curl -u USER:PASS https://bossbot.online/axiombot/api/state.json
 ```
 
 `health.json` is the quick sanity check. It returns `ok: true` and `status: "sane"` when scans are fresh, candidate data is present, trades are paper-only, and open positions pass basic TP/SL/price checks.
+
+The Strategy HUD panel is PIN protected and uses the local Node API behind Nginx:
+
+```text
+GET  /axiombot/api/strategy-config
+POST /axiombot/api/hud-control/unlock
+POST /axiombot/api/strategy-config
+```
 
 ## Deployment Checks
 
@@ -141,8 +152,20 @@ MAX_OPEN_POSITIONS=3
 COOLDOWN_AFTER_CLOSE_MINUTES=45
 MAX_ENTRIES_PER_PAIR=1
 
-PAPER_TRADE_USD=50
-TAKE_PROFIT_PCT=25
+PAPER_STARTING_BALANCE_USD=1000
+BASE_POSITION_BALANCE_PCT=0.05
+MIN_POSITION_USD=5
+MAX_POSITION_USD=50
+POSITION_MULTIPLIER_INITIAL=1
+POSITION_MULTIPLIER_DRAWDOWN=1.5
+POSITION_MULTIPLIER_DRAWDOWN_MAX_PCT=0.3
+SCALE_IN_ENABLED=true
+SCALE_IN_MAX_DOUBLES=2
+SCALE_IN_DROP_FROM_LAST_PCT=12
+SCALE_IN_SIZE_RATIO=1
+TAKE_PROFIT_MAX_PCT=30
+TAKE_PROFIT_MIN_PCT=12
+TAKE_PROFIT_MAP_MINUTES=15
 STOP_LOSS_PCT=12
 TRAILING_STOP_PCT=10
 TRAILING_STOP_ACTIVATION_PCT=15
@@ -151,6 +174,8 @@ STATE_FILE=data/state.json
 HEALTH_FILE=data/health.json
 HEALTH_STALE_SCAN_MS=120000
 HEALTH_MAX_OPEN_POSITIONS=20
+STRATEGY_CONFIG_FILE=data/strategy-config.json
+HUD_CONTROL_PIN=
 ```
 
 ## Strategy Rules
@@ -162,9 +187,13 @@ Useful strategy controls:
 - `MAX_OPEN_POSITIONS`: cap simultaneous paper positions.
 - `COOLDOWN_AFTER_CLOSE_MINUTES`: avoid instant re-entry after TP/SL.
 - `MAX_ENTRIES_PER_PAIR`: prevent repeated churn on the same pair.
+- `BASE_POSITION_BALANCE_PCT`: size base entries from paper high-water balance.
+- `POSITION_MULTIPLIER_*`: map flat-account drawdown into a position-size multiplier.
+- `SCALE_IN_*`: double-down controls for max doubles, drop trigger, and added size.
 - `MIN_BUY_SELL_RATIO`: require buy pressure, not just buy count.
 - `MAX_PRICE_CHANGE_M5_PCT`: avoid chasing already-vertical candles.
 - `REQUIRE_LIQUIDITY`: reject zero-liquidity pairs.
+- `TAKE_PROFIT_*`: map take-profit from max percent toward min percent over time.
 - `TRAILING_STOP_PCT`: protect gains after activation.
 - `MAX_HOLD_MINUTES`: force stale trades closed.
 

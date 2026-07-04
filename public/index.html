@@ -19,6 +19,13 @@
     </header>
 
     <main>
+      <nav class="tabs" aria-label="HUD sections">
+        <button class="tab active" type="button" data-tab="home">Home</button>
+        <button class="tab" type="button" data-tab="trades">Trades</button>
+        <button class="tab" type="button" data-tab="strategy">Strategy</button>
+      </nav>
+
+      <section class="tab-panel active" data-panel="home">
       <section class="metrics" aria-label="Scanner metrics">
         <div class="metric">
           <span class="metric-label">Last Scan</span>
@@ -49,7 +56,9 @@
         </div>
         <div id="candidates" class="grid-list"></div>
       </section>
+      </section>
 
+      <section class="tab-panel" data-panel="trades">
       <section class="panel">
         <div class="section-heading">
           <h2>Open Paper Trades</h2>
@@ -64,6 +73,24 @@
           <span class="muted">Latest 20 exits</span>
         </div>
         <div id="closed-positions" class="position-list compact"></div>
+      </section>
+      </section>
+
+      <section class="tab-panel" data-panel="strategy">
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Strategy</h2>
+              <span class="muted">PIN protected controls</span>
+            </div>
+            <div class="actions">
+              <button id="strategy-unlock" type="button">Unlock</button>
+              <button id="strategy-save" type="button" disabled>Save</button>
+            </div>
+          </div>
+          <div id="strategy-message" class="notice muted">Locked</div>
+          <div id="strategy-controls" class="settings-grid"></div>
+        </section>
       </section>
     </main>
 

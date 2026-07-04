@@ -4,6 +4,7 @@ import { DexScreenerSource, bestPairForProfile } from "./sources/dexscreener.js"
 import { loadState, pairKey, saveJson, saveState, tokenKey } from "./state/store.js";
 import { evaluatePortfolioEntry } from "./strategy/entry-rules.js";
 import { evaluateMomentumEntry, scoreMomentum } from "./strategy/momentum.js";
+import { updatePaperAccount } from "./trading/paper-account.js";
 import { enterPaperTrade, updatePaperTrades } from "./trading/paper.js";
 
 function mapPairsByKey(pairs) {
@@ -30,7 +31,8 @@ export async function scanOnce(config) {
 
   const pairs = await source.getPairsForProfiles(profiles);
   const pairsByKey = mapPairsByKey(pairs);
-  const closedPositions = updatePaperTrades(state, pairsByKey);
+  const closedPositions = updatePaperTrades(state, pairsByKey, config.paper);
+  updatePaperAccount(state, config.paper);
 
   const scoredCandidates = [];
   const openedPositions = [];
@@ -81,6 +83,8 @@ export async function scanOnce(config) {
       if (position) openedPositions.push(position);
     }
   }
+
+  updatePaperAccount(state, config.paper);
 
   const result = {
     scannedAt: new Date().toISOString(),

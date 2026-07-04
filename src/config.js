@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { getStrategyConfig, strategyConfigToRuntime } from "./strategy/config-store.js";
 
 function parsePositiveInt(value, fallback) {
   if (!value) return fallback;
@@ -25,7 +26,7 @@ function parseBoolean(value, fallback) {
 }
 
 export function loadConfig() {
-  return {
+  const config = {
     source: {
       dexScreenerBaseUrl: process.env.DEXSCREENER_BASE_URL || "https://api.dexscreener.com",
       chains: parseList(process.env.CHAINS, "solana"),
@@ -72,6 +73,19 @@ export function loadConfig() {
     health: {
       staleScanMs: parsePositiveInt(process.env.HEALTH_STALE_SCAN_MS, 120_000),
       maxOpenPositions: parsePositiveInt(process.env.HEALTH_MAX_OPEN_POSITIONS, 20)
+    }
+  };
+  const runtimeStrategy = strategyConfigToRuntime(getStrategyConfig());
+
+  return {
+    ...config,
+    strategy: {
+      ...config.strategy,
+      ...runtimeStrategy.strategy
+    },
+    paper: {
+      ...config.paper,
+      ...runtimeStrategy.paper
     }
   };
 }

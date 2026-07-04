@@ -5,7 +5,8 @@ const EMPTY_STATE = {
   seenTokens: {},
   openPositions: {},
   closedPositions: [],
-  lastScan: null
+  lastScan: null,
+  account: null
 };
 
 export async function loadState(filePath) {

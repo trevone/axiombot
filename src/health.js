@@ -77,6 +77,12 @@ export function buildHealth(state, config, now = Date.now()) {
       closedLastScan: lastScan?.closedPositions?.length ?? 0,
       maxOpenPositions: config.health.maxOpenPositions,
       closedPnlUsd: Number(closedPnlUsd.toFixed(2))
+    },
+    account: {
+      currentBalanceUsd: state.account?.currentBalanceUsd ?? null,
+      highWaterBalanceUsd: state.account?.highWaterBalanceUsd ?? null,
+      drawdownUsd: state.account?.drawdownUsd ?? null,
+      drawdownPct: state.account?.drawdownPct ?? null
     }
   };
 }

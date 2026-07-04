@@ -9,7 +9,7 @@ User=trevor
 Group=trevor
 WorkingDirectory=/home/trevor/axiombot
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/npm run daemon
+ExecStart=/usr/bin/npm run server
 Restart=always
 RestartSec=5
 
