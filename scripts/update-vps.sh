@@ -61,6 +61,11 @@ sudo mkdir -p "$WEB_DIR/public"
 sudo cp -R public/. "$WEB_DIR/public/"
 sudo chown -R www-data:www-data "$WEB_DIR/public"
 
+say "Updating Nginx HUD snippet"
+sudo cp deploy/nginx-axiombot.conf /etc/nginx/snippets/axiombot.conf
+sudo nginx -t
+sudo systemctl reload nginx
+
 say "Restarting $SERVICE"
 sudo systemctl restart "$SERVICE"
 
