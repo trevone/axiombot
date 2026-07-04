@@ -19,6 +19,11 @@ function parseList(value, fallback) {
     .filter(Boolean);
 }
 
+function parseBoolean(value, fallback) {
+  if (!value) return fallback;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
 export function loadConfig() {
   return {
     source: {
@@ -42,14 +47,23 @@ export function loadConfig() {
       minVolumeM5Usd: parsePositiveFloat(process.env.MIN_VOLUME_M5_USD, 500),
       minBuysM5: parsePositiveInt(process.env.MIN_BUYS_M5, 5),
       minPriceChangeM5Pct: parsePositiveFloat(process.env.MIN_PRICE_CHANGE_M5_PCT, 5),
+      maxPriceChangeM5Pct: parsePositiveFloat(process.env.MAX_PRICE_CHANGE_M5_PCT, 60),
+      minBuySellRatio: parsePositiveFloat(process.env.MIN_BUY_SELL_RATIO, 1.2),
       minScoreToEnter: parsePositiveInt(process.env.MIN_SCORE_TO_ENTER, 70),
       maxPairAgeMinutes: parsePositiveInt(process.env.MAX_PAIR_AGE_MINUTES, 180),
-      allowedDexes: parseList(process.env.ALLOWED_DEXES, "pumpswap,raydium,meteora")
+      allowedDexes: parseList(process.env.ALLOWED_DEXES, "pumpswap,raydium,meteora"),
+      requireLiquidity: parseBoolean(process.env.REQUIRE_LIQUIDITY, true),
+      maxOpenPositions: parsePositiveInt(process.env.MAX_OPEN_POSITIONS, 3),
+      cooldownAfterCloseMinutes: parsePositiveInt(process.env.COOLDOWN_AFTER_CLOSE_MINUTES, 45),
+      maxEntriesPerPair: parsePositiveInt(process.env.MAX_ENTRIES_PER_PAIR, 1)
     },
     paper: {
       tradeSizeUsd: parsePositiveFloat(process.env.PAPER_TRADE_USD, 50),
       takeProfitPct: parsePositiveFloat(process.env.TAKE_PROFIT_PCT, 25),
-      stopLossPct: parsePositiveFloat(process.env.STOP_LOSS_PCT, 12)
+      stopLossPct: parsePositiveFloat(process.env.STOP_LOSS_PCT, 12),
+      trailingStopPct: parsePositiveFloat(process.env.TRAILING_STOP_PCT, 10),
+      trailingStopActivationPct: parsePositiveFloat(process.env.TRAILING_STOP_ACTIVATION_PCT, 15),
+      maxHoldMinutes: parsePositiveInt(process.env.MAX_HOLD_MINUTES, 20)
     },
     state: {
       file: process.env.STATE_FILE || "data/state.json",

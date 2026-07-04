@@ -1,4 +1,4 @@
-export function buildCandidate(profile, pair, momentum) {
+export function buildCandidate(profile, pair, momentum, entryDecision) {
   return {
     id: `${profile.chainId}:${profile.tokenAddress}`.toLowerCase(),
     chainId: profile.chainId,
@@ -9,7 +9,8 @@ export function buildCandidate(profile, pair, momentum) {
     name: pair.baseToken?.name || "",
     priceUsd: Number(pair.priceUsd),
     url: pair.url || profile.url,
-    momentum
+    momentum,
+    entryDecision
   };
 }
 

@@ -10,7 +10,7 @@
     "daemon": "node src/index.js daemon",
     "positions": "node src/index.js positions",
     "ws:test": "node src/index.js ws:test",
-    "check": "node --check src/index.js && node --check src/cli.js && node --check src/config.js && node --check src/scanner.js && node --check src/health.js && node --check src/sources/dexscreener.js && node --check src/strategy/momentum.js && node --check src/risk/filters.js && node --check src/state/store.js && node --check src/trading/paper.js && node --check src/ws/solana-ws.js && node --check public/app.js",
+    "check": "node --check src/index.js && node --check src/cli.js && node --check src/config.js && node --check src/scanner.js && node --check src/health.js && node --check src/sources/dexscreener.js && node --check src/strategy/momentum.js && node --check src/strategy/entry-rules.js && node --check src/risk/filters.js && node --check src/state/store.js && node --check src/trading/paper.js && node --check src/ws/solana-ws.js && node --check public/app.js",
     "smoke:vps": "bash scripts/smoke-vps.sh"
   },
   "dependencies": {

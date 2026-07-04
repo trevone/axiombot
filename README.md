@@ -131,18 +131,42 @@ MIN_LIQUIDITY_USD=10000
 MIN_VOLUME_M5_USD=500
 MIN_BUYS_M5=5
 MIN_PRICE_CHANGE_M5_PCT=5
+MAX_PRICE_CHANGE_M5_PCT=60
+MIN_BUY_SELL_RATIO=1.2
 MIN_SCORE_TO_ENTER=70
 MAX_PAIR_AGE_MINUTES=180
 ALLOWED_DEXES=pumpswap,raydium,meteora
+REQUIRE_LIQUIDITY=true
+MAX_OPEN_POSITIONS=3
+COOLDOWN_AFTER_CLOSE_MINUTES=45
+MAX_ENTRIES_PER_PAIR=1
 
 PAPER_TRADE_USD=50
 TAKE_PROFIT_PCT=25
 STOP_LOSS_PCT=12
+TRAILING_STOP_PCT=10
+TRAILING_STOP_ACTIVATION_PCT=15
+MAX_HOLD_MINUTES=20
 STATE_FILE=data/state.json
 HEALTH_FILE=data/health.json
 HEALTH_STALE_SCAN_MS=120000
 HEALTH_MAX_OPEN_POSITIONS=20
 ```
+
+## Strategy Rules
+
+Entry candidates now include an `entryDecision` block with `allowed` and `skipReasons`. That makes tuning much easier because we can see why the bot passed or rejected a token.
+
+Useful strategy controls:
+
+- `MAX_OPEN_POSITIONS`: cap simultaneous paper positions.
+- `COOLDOWN_AFTER_CLOSE_MINUTES`: avoid instant re-entry after TP/SL.
+- `MAX_ENTRIES_PER_PAIR`: prevent repeated churn on the same pair.
+- `MIN_BUY_SELL_RATIO`: require buy pressure, not just buy count.
+- `MAX_PRICE_CHANGE_M5_PCT`: avoid chasing already-vertical candles.
+- `REQUIRE_LIQUIDITY`: reject zero-liquidity pairs.
+- `TRAILING_STOP_PCT`: protect gains after activation.
+- `MAX_HOLD_MINUTES`: force stale trades closed.
 
 ## Project Shape
 

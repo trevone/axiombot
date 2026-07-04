@@ -17,6 +17,7 @@ export function scoreMomentum(pair, strategyConfig) {
   const volumeM5Usd = numberOrZero(pair.volume?.m5);
   const buysM5 = numberOrZero(pair.txns?.m5?.buys);
   const sellsM5 = numberOrZero(pair.txns?.m5?.sells);
+  const buySellRatio = sellsM5 > 0 ? buysM5 / sellsM5 : buysM5;
   const priceChangeM5Pct = numberOrZero(pair.priceChange?.m5);
   const ageMinutes = pairAgeMinutes(pair);
 
@@ -59,19 +60,32 @@ export function scoreMomentum(pair, strategyConfig) {
     volumeM5Usd,
     buysM5,
     sellsM5,
+    buySellRatio: Number(buySellRatio.toFixed(2)),
     priceChangeM5Pct,
     ageMinutes,
     reasons
   };
 }
 
-export function shouldEnter(pair, momentum, strategyConfig) {
-  if (!pair?.priceUsd || Number(pair.priceUsd) <= 0) return false;
-  if (!strategyConfig.allowedDexes.includes(pair.dexId)) return false;
-  if (momentum.liquidityUsd < strategyConfig.minLiquidityUsd) return false;
-  if (momentum.volumeM5Usd < strategyConfig.minVolumeM5Usd) return false;
-  if (momentum.buysM5 < strategyConfig.minBuysM5) return false;
-  if (momentum.priceChangeM5Pct < strategyConfig.minPriceChangeM5Pct) return false;
-  if (momentum.ageMinutes !== null && momentum.ageMinutes > strategyConfig.maxPairAgeMinutes) return false;
-  return momentum.score >= strategyConfig.minScoreToEnter;
+export function evaluateMomentumEntry(pair, momentum, strategyConfig) {
+  const skipReasons = [];
+
+  if (!pair?.priceUsd || Number(pair.priceUsd) <= 0) skipReasons.push("missing_price");
+  if (!strategyConfig.allowedDexes.includes(pair.dexId)) skipReasons.push("dex_not_allowed");
+  if (strategyConfig.requireLiquidity && momentum.liquidityUsd <= 0) skipReasons.push("zero_liquidity");
+  if (momentum.liquidityUsd < strategyConfig.minLiquidityUsd) skipReasons.push("low_liquidity");
+  if (momentum.volumeM5Usd < strategyConfig.minVolumeM5Usd) skipReasons.push("low_5m_volume");
+  if (momentum.buysM5 < strategyConfig.minBuysM5) skipReasons.push("low_5m_buys");
+  if (momentum.buySellRatio < strategyConfig.minBuySellRatio) skipReasons.push("weak_buy_sell_ratio");
+  if (momentum.priceChangeM5Pct < strategyConfig.minPriceChangeM5Pct) skipReasons.push("weak_5m_move");
+  if (momentum.priceChangeM5Pct > strategyConfig.maxPriceChangeM5Pct) skipReasons.push("overextended_5m_move");
+  if (momentum.ageMinutes !== null && momentum.ageMinutes > strategyConfig.maxPairAgeMinutes) {
+    skipReasons.push("pair_too_old");
+  }
+  if (momentum.score < strategyConfig.minScoreToEnter) skipReasons.push("score_below_entry");
+
+  return {
+    allowed: skipReasons.length === 0,
+    skipReasons
+  };
 }

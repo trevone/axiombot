@@ -25,9 +25,13 @@ export function enterPaperTrade(state, profile, pair, momentum, paperConfig) {
     url: pair.url || profile.url,
     sizeUsd: paperConfig.tradeSizeUsd,
     entryPriceUsd,
+    peakPriceUsd: entryPriceUsd,
     entryAt: new Date().toISOString(),
     takeProfitPct: paperConfig.takeProfitPct,
     stopLossPct: paperConfig.stopLossPct,
+    trailingStopPct: paperConfig.trailingStopPct,
+    trailingStopActivationPct: paperConfig.trailingStopActivationPct,
+    maxHoldMinutes: paperConfig.maxHoldMinutes,
     score: momentum.score,
     reasons: momentum.reasons
   };
@@ -47,19 +51,30 @@ export function updatePaperTrades(state, pairsByKey) {
     if (currentPriceUsd <= 0) continue;
 
     const pnlPct = ((currentPriceUsd - position.entryPriceUsd) / position.entryPriceUsd) * 100;
+    position.peakPriceUsd = Math.max(numberOrZero(position.peakPriceUsd), currentPriceUsd);
     position.lastPriceUsd = currentPriceUsd;
     position.unrealizedPnlPct = Number(pnlPct.toFixed(2));
 
+    const peakPnlPct = ((position.peakPriceUsd - position.entryPriceUsd) / position.entryPriceUsd) * 100;
+    const drawdownFromPeakPct = ((currentPriceUsd - position.peakPriceUsd) / position.peakPriceUsd) * 100;
+    const holdMinutes = (Date.now() - new Date(position.entryAt).getTime()) / 60_000;
     const hitTp = pnlPct >= position.takeProfitPct;
     const hitSl = pnlPct <= -position.stopLossPct;
+    const hitTrailingStop =
+      peakPnlPct >= position.trailingStopActivationPct &&
+      drawdownFromPeakPct <= -position.trailingStopPct;
+    const hitMaxHold = holdMinutes >= position.maxHoldMinutes;
 
-    if (!hitTp && !hitSl) continue;
+    if (!hitTp && !hitSl && !hitTrailingStop && !hitMaxHold) continue;
+
+    const exitReason =
+      hitTp ? "take_profit" : hitSl ? "stop_loss" : hitTrailingStop ? "trailing_stop" : "max_hold";
 
     const closedPosition = {
       ...position,
       exitPriceUsd: currentPriceUsd,
       exitAt: new Date().toISOString(),
-      exitReason: hitTp ? "take_profit" : "stop_loss",
+      exitReason,
       realizedPnlPct: Number(pnlPct.toFixed(2)),
       realizedPnlUsd: Number(((position.sizeUsd * pnlPct) / 100).toFixed(2))
     };

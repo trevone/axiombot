@@ -2,7 +2,8 @@ import { buildHealth } from "./health.js";
 import { buildCandidate, sortCandidates } from "./risk/filters.js";
 import { DexScreenerSource, bestPairForProfile } from "./sources/dexscreener.js";
 import { loadState, pairKey, saveJson, saveState, tokenKey } from "./state/store.js";
-import { scoreMomentum, shouldEnter } from "./strategy/momentum.js";
+import { evaluatePortfolioEntry } from "./strategy/entry-rules.js";
+import { evaluateMomentumEntry, scoreMomentum } from "./strategy/momentum.js";
 import { enterPaperTrade, updatePaperTrades } from "./trading/paper.js";
 
 function mapPairsByKey(pairs) {
@@ -31,7 +32,7 @@ export async function scanOnce(config) {
   const pairsByKey = mapPairsByKey(pairs);
   const closedPositions = updatePaperTrades(state, pairsByKey);
 
-  const candidates = [];
+  const scoredCandidates = [];
   const openedPositions = [];
 
   for (const profile of profiles) {
@@ -47,10 +48,35 @@ export async function scanOnce(config) {
     if (!pair) continue;
 
     const momentum = scoreMomentum(pair, config.strategy);
-    const candidate = buildCandidate(profile, pair, momentum);
+    const momentumDecision = evaluateMomentumEntry(pair, momentum, config.strategy);
+    scoredCandidates.push({
+      profile,
+      pair,
+      momentum,
+      momentumDecision
+    });
+  }
+
+  scoredCandidates.sort((a, b) => b.momentum.score - a.momentum.score);
+
+  const candidates = [];
+
+  for (const scoredCandidate of scoredCandidates) {
+    const { profile, pair, momentum, momentumDecision } = scoredCandidate;
+    const portfolioDecision = evaluatePortfolioEntry(state, pair, config.strategy);
+    const entryDecision = {
+      allowed: momentumDecision.allowed && portfolioDecision.allowed,
+      skipReasons: [...momentumDecision.skipReasons, ...portfolioDecision.skipReasons],
+      portfolio: {
+        openCount: portfolioDecision.openCount,
+        entryCount: portfolioDecision.entryCount,
+        minutesSinceClose: portfolioDecision.minutesSinceClose
+      }
+    };
+    const candidate = buildCandidate(profile, pair, momentum, entryDecision);
     candidates.push(candidate);
 
-    if (shouldEnter(pair, momentum, config.strategy)) {
+    if (entryDecision.allowed) {
       const position = enterPaperTrade(state, profile, pair, momentum, config.paper);
       if (position) openedPositions.push(position);
     }
