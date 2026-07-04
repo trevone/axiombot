@@ -3,7 +3,7 @@ import path from "node:path";
 
 const EMPTY_STATE = {
   seenTokens: {},
-  positions: {},
+  openPositions: {},
   closedPositions: []
 };
 
@@ -28,8 +28,8 @@ export async function saveState(filePath, state) {
   await writeFile(filePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
-export function tokenKey(token) {
-  return `${token.chainId}:${token.tokenAddress}`.toLowerCase();
+export function tokenKey(profile) {
+  return `${profile.chainId}:${profile.tokenAddress}`.toLowerCase();
 }
 
 export function pairKey(pair) {
