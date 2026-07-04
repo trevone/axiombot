@@ -60,6 +60,9 @@ say "Publishing HUD assets"
 sudo mkdir -p "$WEB_DIR/public"
 sudo cp -R public/. "$WEB_DIR/public/"
 sudo chown -R www-data:www-data "$WEB_DIR/public"
+sudo touch "$WEB_DIR/state.json" "$WEB_DIR/health.json"
+sudo chown trevor:www-data "$WEB_DIR/state.json" "$WEB_DIR/health.json"
+sudo chmod 664 "$WEB_DIR/state.json" "$WEB_DIR/health.json"
 
 say "Updating Nginx HUD snippet"
 sudo cp deploy/nginx-axiombot.conf /etc/nginx/snippets/axiombot.conf

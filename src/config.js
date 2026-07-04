@@ -44,7 +44,12 @@ export function loadConfig() {
       stopLossPct: parsePositiveFloat(process.env.STOP_LOSS_PCT, 12)
     },
     state: {
-      file: process.env.STATE_FILE || "data/state.json"
+      file: process.env.STATE_FILE || "data/state.json",
+      healthFile: process.env.HEALTH_FILE || "data/health.json"
+    },
+    health: {
+      staleScanMs: parsePositiveInt(process.env.HEALTH_STALE_SCAN_MS, 120_000),
+      maxOpenPositions: parsePositiveInt(process.env.HEALTH_MAX_OPEN_POSITIONS, 20)
     }
   };
 }

@@ -1,6 +1,7 @@
+import { buildHealth } from "./health.js";
 import { buildCandidate, sortCandidates } from "./risk/filters.js";
 import { DexScreenerSource, bestPairForProfile } from "./sources/dexscreener.js";
-import { loadState, pairKey, saveState, tokenKey } from "./state/store.js";
+import { loadState, pairKey, saveJson, saveState, tokenKey } from "./state/store.js";
 import { scoreMomentum, shouldEnter } from "./strategy/momentum.js";
 import { enterPaperTrade, updatePaperTrades } from "./trading/paper.js";
 
@@ -77,7 +78,10 @@ export async function scanOnce(config) {
     closedPositions: result.closedPositions
   };
 
+  state.health = buildHealth(state, config);
+
   await saveState(config.state.file, state);
+  await saveJson(config.state.healthFile, state.health);
 
   return result;
 }

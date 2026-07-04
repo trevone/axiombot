@@ -29,6 +29,11 @@ export async function saveState(filePath, state) {
   await writeFile(filePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
+export async function saveJson(filePath, value) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
 export function tokenKey(profile) {
   return `${profile.chainId}:${profile.tokenAddress}`.toLowerCase();
 }

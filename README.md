@@ -42,6 +42,8 @@ The HUD is a static dashboard in `public/`. It expects Nginx to serve:
 ```text
 /axiombot/             -> public/index.html
 /axiombot/state.json   -> /var/www/axiombot/state.json
+/axiombot/api/state.json
+/axiombot/api/health.json
 ```
 
 An example Nginx location snippet is included at `deploy/nginx-axiombot.conf`.
@@ -60,7 +62,19 @@ Set this in the VPS `.env` so the scanner writes state where Nginx can read it:
 
 ```dotenv
 STATE_FILE=/var/www/axiombot/state.json
+HEALTH_FILE=/var/www/axiombot/health.json
 ```
+
+## Read API
+
+The Nginx HUD exposes authenticated JSON endpoints:
+
+```bash
+curl -u USER:PASS https://bossbot.online/axiombot/api/health.json
+curl -u USER:PASS https://bossbot.online/axiombot/api/state.json
+```
+
+`health.json` is the quick sanity check. It returns `ok: true` and `status: "sane"` when scans are fresh, candidate data is present, trades are paper-only, and open positions pass basic TP/SL/price checks.
 
 The HUD auto-refreshes every 15 seconds and displays latest candidates, open paper trades, and recently closed paper trades.
 
@@ -86,6 +100,9 @@ PAPER_TRADE_USD=50
 TAKE_PROFIT_PCT=25
 STOP_LOSS_PCT=12
 STATE_FILE=data/state.json
+HEALTH_FILE=data/health.json
+HEALTH_STALE_SCAN_MS=120000
+HEALTH_MAX_OPEN_POSITIONS=20
 ```
 
 ## Project Shape
