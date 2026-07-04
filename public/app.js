@@ -1,4 +1,4 @@
-const stateUrl = "/state.json";
+const stateUrl = "state.json";
 const refreshMs = 15_000;
 
 const elements = {

@@ -40,17 +40,18 @@ npm.cmd run check      # syntax check
 The HUD is a static dashboard in `public/`. It expects Nginx to serve:
 
 ```text
-/              -> public/index.html
-/state.json    -> data/state.json
+/axiombot/             -> public/index.html
+/axiombot/state.json   -> data/state.json
 ```
 
-An example Nginx site config is included at `deploy/nginx-axiombot.conf`.
+An example Nginx location snippet is included at `deploy/nginx-axiombot.conf`.
 
-On the VPS, assuming the repo lives at `/opt/axiombot`:
+On the VPS, assuming the repo lives at `/home/trevor/axiombot`, include the snippet inside the existing `bossbot.online` server block:
 
 ```bash
-sudo cp deploy/nginx-axiombot.conf /etc/nginx/sites-available/axiombot
-sudo ln -s /etc/nginx/sites-available/axiombot /etc/nginx/sites-enabled/axiombot
+sudo cp deploy/nginx-axiombot.conf /etc/nginx/snippets/axiombot.conf
+# Add this inside the HTTPS server block:
+# include /etc/nginx/snippets/axiombot.conf;
 sudo nginx -t
 sudo systemctl reload nginx
 ```
