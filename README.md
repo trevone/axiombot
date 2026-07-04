@@ -32,8 +32,30 @@ npm.cmd run scan
 npm.cmd run scan       # run one scan
 npm.cmd run daemon     # run forever for VPS/pm2/systemd
 npm.cmd run positions  # inspect paper positions
+npm.cmd run ws:test    # verify Solana WebSocket connectivity
 npm.cmd run check      # syntax check
 ```
+
+## Helius WebSockets
+
+Create a Helius API key, then set:
+
+```dotenv
+WS_PROVIDER=helius
+HELIUS_API_KEY=your-key
+SOLANA_WS_URL=
+WS_TEST_NOTIFICATIONS=3
+WS_TEST_TIMEOUT_MS=30000
+WS_PING_INTERVAL_MS=60000
+```
+
+Run:
+
+```bash
+npm run ws:test
+```
+
+The test uses standard Solana `slotSubscribe`, which Helius supports on all plans. It exits successfully after receiving live slot notifications.
 
 ## HUD
 

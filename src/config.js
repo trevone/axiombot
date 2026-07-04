@@ -29,6 +29,14 @@ export function loadConfig() {
     scanner: {
       intervalMs: parsePositiveInt(process.env.SCAN_INTERVAL_MS, 30_000)
     },
+    websocket: {
+      provider: process.env.WS_PROVIDER || "helius",
+      url: process.env.SOLANA_WS_URL,
+      heliusApiKey: process.env.HELIUS_API_KEY,
+      testNotifications: parsePositiveInt(process.env.WS_TEST_NOTIFICATIONS, 3),
+      testTimeoutMs: parsePositiveInt(process.env.WS_TEST_TIMEOUT_MS, 30_000),
+      pingIntervalMs: parsePositiveInt(process.env.WS_PING_INTERVAL_MS, 60_000)
+    },
     strategy: {
       minLiquidityUsd: parsePositiveFloat(process.env.MIN_LIQUIDITY_USD, 10_000),
       minVolumeM5Usd: parsePositiveFloat(process.env.MIN_VOLUME_M5_USD, 500),
@@ -64,4 +72,34 @@ export function assertConfig(config) {
   if (config.source.chains.length === 0) {
     throw new Error("CHAINS must include at least one chain, for example solana.");
   }
+}
+
+export function assertWebSocketConfig(config) {
+  if (config.websocket.url) {
+    try {
+      new URL(config.websocket.url);
+    } catch {
+      throw new Error(`SOLANA_WS_URL is invalid: ${config.websocket.url}`);
+    }
+
+    return;
+  }
+
+  if (config.websocket.provider === "helius" && !config.websocket.heliusApiKey) {
+    throw new Error("Missing HELIUS_API_KEY or SOLANA_WS_URL for WebSocket commands.");
+  }
+}
+
+export function buildSolanaWebSocketUrl(config) {
+  if (config.websocket.url) {
+    return config.websocket.url;
+  }
+
+  if (config.websocket.provider === "helius") {
+    const url = new URL("wss://mainnet.helius-rpc.com/");
+    url.searchParams.set("api-key", config.websocket.heliusApiKey);
+    return url.toString();
+  }
+
+  throw new Error(`Unsupported WS_PROVIDER: ${config.websocket.provider}`);
 }

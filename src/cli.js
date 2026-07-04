@@ -1,8 +1,14 @@
-import { assertConfig, loadConfig } from "./config.js";
+import {
+  assertConfig,
+  assertWebSocketConfig,
+  buildSolanaWebSocketUrl,
+  loadConfig
+} from "./config.js";
 import { scanOnce } from "./scanner.js";
 import { loadState } from "./state/store.js";
+import { testSolanaWebSocket } from "./ws/solana-ws.js";
 
-const COMMANDS = new Set(["scan", "daemon", "positions"]);
+const COMMANDS = new Set(["scan", "daemon", "positions", "ws:test"]);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -20,6 +26,20 @@ export async function runCli(argv = process.argv) {
   }
 
   const config = loadConfig();
+
+  if (command === "ws:test") {
+    assertWebSocketConfig(config);
+    printJson(
+      await testSolanaWebSocket({
+        url: buildSolanaWebSocketUrl(config),
+        notificationsToReceive: config.websocket.testNotifications,
+        timeoutMs: config.websocket.testTimeoutMs,
+        pingIntervalMs: config.websocket.pingIntervalMs
+      })
+    );
+    return;
+  }
+
   assertConfig(config);
 
   if (command === "positions") {
