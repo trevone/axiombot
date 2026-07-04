@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AxiomBot HUD</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Paper Trading</p>
+        <h1>AxiomBot HUD</h1>
+      </div>
+      <div class="actions">
+        <span id="status-pill" class="status-pill">Loading</span>
+        <button id="refresh-button" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="metrics" aria-label="Scanner metrics">
+        <div class="metric">
+          <span class="metric-label">Last Scan</span>
+          <strong id="last-scan">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Profiles</span>
+          <strong id="profiles-scanned">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Pairs</span>
+          <strong id="pairs-found">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Open</span>
+          <strong id="open-count">-</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Closed</span>
+          <strong id="closed-count">-</strong>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <h2>Top Candidates</h2>
+          <span id="candidate-count" class="muted">0 tracked</span>
+        </div>
+        <div id="candidates" class="grid-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <h2>Open Paper Trades</h2>
+          <span class="muted">TP / SL managed locally</span>
+        </div>
+        <div id="open-positions" class="position-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <h2>Recently Closed</h2>
+          <span class="muted">Latest 20 exits</span>
+        </div>
+        <div id="closed-positions" class="position-list compact"></div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

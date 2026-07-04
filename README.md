@@ -35,6 +35,28 @@ npm.cmd run positions  # inspect paper positions
 npm.cmd run check      # syntax check
 ```
 
+## HUD
+
+The HUD is a static dashboard in `public/`. It expects Nginx to serve:
+
+```text
+/              -> public/index.html
+/state.json    -> data/state.json
+```
+
+An example Nginx site config is included at `deploy/nginx-axiombot.conf`.
+
+On the VPS, assuming the repo lives at `/opt/axiombot`:
+
+```bash
+sudo cp deploy/nginx-axiombot.conf /etc/nginx/sites-available/axiombot
+sudo ln -s /etc/nginx/sites-available/axiombot /etc/nginx/sites-enabled/axiombot
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The HUD auto-refreshes every 15 seconds and displays latest candidates, open paper trades, and recently closed paper trades.
+
 ## Config
 
 Edit `.env`:
@@ -70,6 +92,12 @@ src/
   state/store.js
   scanner.js
   cli.js
+public/
+  index.html
+  styles.css
+  app.js
+deploy/
+  nginx-axiombot.conf
 ```
 
 ## VPS Start

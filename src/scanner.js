@@ -55,9 +55,7 @@ export async function scanOnce(config) {
     }
   }
 
-  await saveState(config.state.file, state);
-
-  return {
+  const result = {
     scannedAt: new Date().toISOString(),
     mode: "paper",
     source: "dexscreener",
@@ -67,4 +65,19 @@ export async function scanOnce(config) {
     openedPositions,
     closedPositions
   };
+
+  state.lastScan = {
+    scannedAt: result.scannedAt,
+    mode: result.mode,
+    source: result.source,
+    profilesScanned: result.profilesScanned,
+    pairsFound: result.pairsFound,
+    topCandidates: result.topCandidates,
+    openedPositions: result.openedPositions,
+    closedPositions: result.closedPositions
+  };
+
+  await saveState(config.state.file, state);
+
+  return result;
 }

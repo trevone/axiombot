@@ -4,7 +4,8 @@ import path from "node:path";
 const EMPTY_STATE = {
   seenTokens: {},
   openPositions: {},
-  closedPositions: []
+  closedPositions: [],
+  lastScan: null
 };
 
 export async function loadState(filePath) {
