@@ -1,0 +1,22 @@
+{
+  "name": "axiombot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A token scanner and Axiom API automation helper.",
+  "scripts": {
+    "start": "node src/index.js scan",
+    "scan": "node src/index.js scan",
+    "daemon": "node src/index.js daemon",
+    "positions": "node src/index.js positions",
+    "axiom:list": "node src/index.js axiom:list",
+    "axiom:trigger": "node src/index.js axiom:trigger",
+    "axiom:status": "node src/index.js axiom:status",
+    "axiom:run": "node src/index.js axiom:run",
+    "check": "node --check src/index.js && node --check src/axiom-api.js && node --check src/config.js && node --check src/dexscreener.js && node --check src/scanner.js && node --check src/scoring.js && node --check src/state.js && node --check src/paper-trader.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {}
+}
