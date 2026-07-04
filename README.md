@@ -76,6 +76,23 @@ curl -u USER:PASS https://bossbot.online/axiombot/api/state.json
 
 `health.json` is the quick sanity check. It returns `ok: true` and `status: "sane"` when scans are fresh, candidate data is present, trades are paper-only, and open positions pass basic TP/SL/price checks.
 
+## Deployment Checks
+
+The VPS update script runs `scripts/smoke-vps.sh` after restart. It fails the deployment if:
+
+- `axiombot.service` is not active.
+- `state.json` or `health.json` is missing or malformed.
+- `health.json` is not `ok`.
+- scanner metrics are stale or empty.
+- HUD/API routes are not protected by basic auth.
+
+Run it manually on the VPS with:
+
+```bash
+cd ~/axiombot
+bash scripts/smoke-vps.sh
+```
+
 The HUD auto-refreshes every 15 seconds and displays latest candidates, open paper trades, and recently closed paper trades.
 
 ## Config
@@ -122,6 +139,9 @@ public/
   app.js
 deploy/
   nginx-axiombot.conf
+scripts/
+  update-vps.sh
+  smoke-vps.sh
 ```
 
 ## VPS Start

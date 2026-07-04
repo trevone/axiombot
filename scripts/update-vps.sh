@@ -72,5 +72,9 @@ sudo systemctl reload nginx
 say "Restarting $SERVICE"
 sudo systemctl restart "$SERVICE"
 
+say "Running deploy smoke test"
+sleep 5
+bash scripts/smoke-vps.sh
+
 say "Service status"
 systemctl --no-pager --full status "$SERVICE" | sed -n '1,18p'
