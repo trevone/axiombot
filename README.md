@@ -41,12 +41,12 @@ The HUD is a static dashboard in `public/`. It expects Nginx to serve:
 
 ```text
 /axiombot/             -> public/index.html
-/axiombot/state.json   -> data/state.json
+/axiombot/state.json   -> /var/www/axiombot/state.json
 ```
 
 An example Nginx location snippet is included at `deploy/nginx-axiombot.conf`.
 
-On the VPS, assuming the repo lives at `/home/trevor/axiombot`, include the snippet inside the existing `bossbot.online` server block:
+On the VPS, include the snippet inside the existing `bossbot.online` server block:
 
 ```bash
 sudo cp deploy/nginx-axiombot.conf /etc/nginx/snippets/axiombot.conf
@@ -54,6 +54,12 @@ sudo cp deploy/nginx-axiombot.conf /etc/nginx/snippets/axiombot.conf
 # include /etc/nginx/snippets/axiombot.conf;
 sudo nginx -t
 sudo systemctl reload nginx
+```
+
+Set this in the VPS `.env` so the scanner writes state where Nginx can read it:
+
+```dotenv
+STATE_FILE=/var/www/axiombot/state.json
 ```
 
 The HUD auto-refreshes every 15 seconds and displays latest candidates, open paper trades, and recently closed paper trades.

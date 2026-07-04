@@ -5,6 +5,7 @@ set -Eeuo pipefail
 APP_DIR="${APP_DIR:-$HOME/axiombot}"
 BRANCH="${BRANCH:-main}"
 SERVICE="${SERVICE:-axiombot.service}"
+WEB_DIR="${WEB_DIR:-/var/www/axiombot}"
 
 say() {
   printf '\n==> %s\n' "$*"
@@ -54,6 +55,11 @@ else
   say "Running checks"
   npm run check
 fi
+
+say "Publishing HUD assets"
+sudo mkdir -p "$WEB_DIR/public"
+sudo cp -R public/. "$WEB_DIR/public/"
+sudo chown -R www-data:www-data "$WEB_DIR/public"
 
 say "Restarting $SERVICE"
 sudo systemctl restart "$SERVICE"
