@@ -1,0 +1,17 @@
+[Unit]
+Description=AxiomBot token scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=trevor
+Group=trevor
+WorkingDirectory=/home/trevor/axiombot
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run daemon
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
