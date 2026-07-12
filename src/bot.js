@@ -2,7 +2,7 @@ import { pairId } from "./dex.js";
 import { logDecision } from "./state.js";
 
 export const CONFIG = {
-  scanMs: 30_000,
+  scanMs: 3_000,
   profileLimit: 30,
   maxOpen: 3,
   breakoutSamples: 10,
