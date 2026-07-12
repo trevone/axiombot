@@ -121,6 +121,31 @@ test("closes stale no quote without inventing exit price", () => {
   assert.equal(state.closed[0].pnlPct, null);
 });
 
+test("keeps let-run position open when quote is missing", () => {
+  const state = {
+    open: {
+      "solana:pair1": {
+        id: "solana:pair1",
+        symbol: "AAA",
+        entry: 1,
+        last: 1.5,
+        peak: 1.5,
+        size: 40,
+        opened: Date.now() - CONFIG.maxHoldMs - 1,
+        scales: 0,
+        lastScalePrice: 1,
+        letRun: true
+      }
+    },
+    closed: [],
+    decisions: []
+  };
+  managePositions(state, []);
+  assert.equal(Object.keys(state.open).length, 1);
+  assert.equal(state.closed.length, 0);
+  assert.equal(Number.isFinite(state.open["solana:pair1"].staleSince), true);
+});
+
 test("take profit inside window enables let run and breakeven stop", () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
   evaluateEntries(state, [pair()]);

@@ -162,6 +162,11 @@ export function managePositions(state, pairs, cfg = CONFIG) {
 
     const pair = byId.get(id);
     if (!pair) {
+      pos.staleSince ||= Date.now();
+      if (pos.letRun) {
+        logDecision(state, { action: "skip_manage", symbol: pos.symbol, reason: "missing_let_run_quote" });
+        continue;
+      }
       if (Date.now() - pos.opened >= cfg.maxHoldMs) close(state, id, null, "stale_no_quote");
       continue;
     }
@@ -172,6 +177,7 @@ export function managePositions(state, pairs, cfg = CONFIG) {
       continue;
     }
 
+    delete pos.staleSince;
     pos.last = price;
     pos.peak = Math.max(pos.peak, price);
     const pnl = pct(price, pos.entry);
