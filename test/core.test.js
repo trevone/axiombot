@@ -86,6 +86,21 @@ test("take profit inside window enables let run and breakeven stop", () => {
   assert.equal(state.closed[0].reason, "breakeven_stop");
 });
 
+test("let run trims remaining size at new highs", () => {
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
+  evaluateEntries(state, [pair()]);
+  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  managePositions(state, [pair({ priceUsd: 1.25 })]);
+  const pos = Object.values(state.open)[0];
+  assert.equal(pos.letRun, true);
+  assert.equal(pos.letRunTrims, 1);
+  assert.equal(pos.size, 40);
+  assert.equal(pos.lastTrimPrice, 1.25);
+  assert.equal(state.closed[0].reason, "let_run_trim");
+  assert.equal(state.closed[0].size, 10);
+  assert.equal(Math.round(state.closed[0].pnlPct), 25);
+});
+
 test("take profit after window closes without let run", () => {
   const state = {
     open: {

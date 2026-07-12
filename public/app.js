@@ -42,7 +42,9 @@ async function load() {
       <dt>Entry</dt><dd>${money(p.entry)}</dd>
       <dt>Last</dt><dd>${money(p.last)}</dd>
       <dt>PnL</dt><dd>${pct(((p.last - p.entry) / p.entry) * 100)}</dd>
+      <dt>Size</dt><dd>${money(p.size)}</dd>
       <dt>Scales</dt><dd>${p.scales}</dd>
+      <dt>Trims</dt><dd>${p.letRunTrims || 0}</dd>
       <dt>Let Run</dt><dd>${p.letRun ? "yes" : "no"}</dd>
     </dl>
     <a href="${p.url}" target="_blank" rel="noreferrer">Chart</a>
@@ -69,7 +71,7 @@ async function load() {
   renderList("closed", state.closed?.slice(0, 20) || [], (p) => `
     <h3>${p.symbol}</h3>
     <p>${p.reason}</p>
-    <dl><dt>PnL</dt><dd>${pct(p.pnlPct)}</dd><dt>Exit</dt><dd>${money(p.exit)}</dd></dl>
+    <dl><dt>PnL</dt><dd>${pct(p.pnlPct)}</dd><dt>Size</dt><dd>${money(p.size)}</dd><dt>Exit</dt><dd>${money(p.exit)}</dd></dl>
   `, "No closed positions.");
 }
 

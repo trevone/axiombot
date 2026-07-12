@@ -22,7 +22,10 @@ export const CONFIG = {
   scaleDropPct: 7,
   maxScales: 5,
   scaleRatio: 1.3,
-  takeProfitPct: 10
+  takeProfitPct: 10,
+  letRunTrimStepPct: 25,
+  letRunTrimPct: 20,
+  letRunMinUsd: 10
 };
 
 const n = (value) => Number(value);
@@ -101,6 +104,21 @@ function close(state, id, price, reason) {
   logDecision(state, { action: "close", symbol: pos.symbol, reason, pnlPct });
 }
 
+function trimLetRun(state, pos, price, cfg) {
+  if (!good(pos.lastTrimPrice)) pos.lastTrimPrice = pos.entry;
+  if (pct(price, pos.lastTrimPrice) < cfg.letRunTrimStepPct) return false;
+
+  const trimSize = pos.size * (cfg.letRunTrimPct / 100);
+  const pnlPct = pct(price, pos.entry);
+  pos.size -= trimSize;
+  pos.lastTrimPrice = price;
+  pos.letRunTrims = (pos.letRunTrims || 0) + 1;
+  state.closed.unshift({ ...pos, size: trimSize, exit: price, reason: "let_run_trim", pnlPct, closed: Date.now() });
+  state.closed = state.closed.slice(0, 300);
+  logDecision(state, { action: "trim", symbol: pos.symbol, price, size: trimSize, remaining: pos.size, pnlPct });
+  return true;
+}
+
 function enter(state, pair, m, cfg) {
   const id = pairId(pair);
   const price = n(pair.priceUsd);
@@ -117,6 +135,8 @@ function enter(state, pair, m, cfg) {
     scales: 0,
     lastScalePrice: price,
     letRun: false,
+    lastTrimPrice: price,
+    letRunTrims: 0,
     score: m.score
   };
   logDecision(state, { action: "enter", symbol: state.open[id].symbol, score: m.score, price });
@@ -163,6 +183,8 @@ export function managePositions(state, pairs, cfg = CONFIG) {
     if (!pos.letRun && pnl >= cfg.takeProfitPct && ageMs <= cfg.letRunWindowMs) {
       pos.letRun = true;
       logDecision(state, { action: "let_run", symbol: pos.symbol, pnlPct: pnl });
+    } else if (pos.letRun && trimLetRun(state, pos, price, cfg) && pos.size <= cfg.letRunMinUsd) {
+      close(state, id, price, "let_run_complete");
     } else if (!pos.letRun && pnl >= cfg.takeProfitPct) {
       close(state, id, price, "take_profit");
     } else if (pos.letRun && pnl <= 0) {
