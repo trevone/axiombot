@@ -25,7 +25,7 @@ function renderList(id, items, render, empty) {
 
 async function load() {
   const res = await fetch(`api/status?t=${Date.now()}`, { cache: "no-store" });
-  const { state, config } = await res.json();
+  const { state, config, wallet } = await res.json();
   const open = Object.values(state.open || {});
   const activeOpen = open.filter((p) => !p.letRun).length;
   const closed = state.closed || [];
@@ -39,7 +39,9 @@ async function load() {
     <div class="metric"><span>Slots</span><strong>${activeOpen}/${config.maxOpen}</strong></div>
     <div class="metric"><span>Closed</span><strong>${closed.length}</strong></div>
     <div class="metric"><span>Partial</span><strong>${money(trimProfit)}</strong></div>
-    <div class="metric"><span>Mode</span><strong>paper</strong></div>
+    <div class="metric"><span>Mode</span><strong>${config.tradingMode}</strong></div>
+    <div class="metric"><span>Wallet</span><strong>${wallet?.address ? `${wallet.address.slice(0, 4)}...${wallet.address.slice(-4)}` : "-"}</strong></div>
+    <div class="metric"><span>SOL</span><strong>${wallet?.sol === null ? "-" : Number(wallet?.sol || 0).toFixed(4)}</strong></div>
   `;
 
   renderList("open", open, (p) => {

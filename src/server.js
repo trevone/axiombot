@@ -1,7 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import { CONFIG, summarize } from "./bot.js";
 import { getSolanaPairs } from "./dex.js";
 import { loadState, saveState } from "./state.js";
+import { walletSummary } from "./wallet.js";
 
 const STATE_FILE = "data/state.json";
 const PORT = 8795;
@@ -13,7 +15,7 @@ async function tick() {
   running = true;
   try {
     const pairs = await getSolanaPairs(CONFIG.profileLimit);
-    summarize(state, pairs);
+    await summarize(state, pairs);
     await saveState(STATE_FILE, state);
     console.log(JSON.stringify(state.lastScan));
   } catch (error) {
@@ -25,7 +27,15 @@ async function tick() {
 }
 
 const app = express();
-app.get("/api/status", (_req, res) => res.json({ config: CONFIG, state }));
+app.get("/api/status", async (_req, res) => {
+  let wallet = { configured: false, address: null, sol: null };
+  try {
+    wallet = await walletSummary();
+  } catch (error) {
+    wallet = { configured: true, address: null, sol: null, error: error.message };
+  }
+  res.json({ config: CONFIG, wallet, state });
+});
 
 tick();
 setInterval(tick, CONFIG.scanMs);

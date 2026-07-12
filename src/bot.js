@@ -1,5 +1,6 @@
 import { pairId } from "./dex.js";
 import { logDecision } from "./state.js";
+import { createTrader, rawPercent, tokenMint } from "./trader.js";
 
 export const CONFIG = {
   scanMs: 3_000,
@@ -26,7 +27,8 @@ export const CONFIG = {
   letRunTrimStepPct: 25,
   letRunTrimPct: 20,
   letRunTrimMaxWaitMs: 30 * 60_000,
-  letRunMinUsd: 10
+  letRunMinUsd: 10,
+  tradingMode: process.env.TRADING_MODE === "live" ? "live" : "paper"
 };
 
 const n = (value) => Number(value);
@@ -96,17 +98,19 @@ function requiredPositionOk(pos) {
   return pos?.id && good(pos.entry) && good(pos.last) && good(pos.peak) && good(pos.size) && good(pos.opened);
 }
 
-function close(state, id, price, reason) {
+async function close(state, id, price, reason, trader) {
   const pos = state.open[id];
+  let trade = null;
+  if (trader.mode === "live" && pos.tokenAmountRaw) trade = await trader.sell(pos, pos.tokenAmountRaw);
   delete state.open[id];
   const pnlPct = good(price) ? pct(n(price), pos.entry) : null;
-  const closed = { ...pos, exit: good(price) ? n(price) : null, reason, pnlPct, closed: Date.now() };
+  const closed = { ...pos, exit: good(price) ? n(price) : null, reason, pnlPct, closed: Date.now(), closeTrade: trade };
   state.closed.unshift(closed);
   state.closed = state.closed.slice(0, 300);
-  logDecision(state, { action: "close", symbol: pos.symbol, reason, pnlPct });
+  logDecision(state, { action: "close", symbol: pos.symbol, reason, pnlPct, signature: trade?.signature });
 }
 
-function trimLetRun(state, pos, price, cfg, now) {
+async function trimLetRun(state, pos, price, cfg, now, trader) {
   if (!good(pos.lastTrimPrice)) pos.lastTrimPrice = pos.entry;
   if (!good(pos.lastTrimAt)) pos.lastTrimAt = now;
   const pnlPct = pct(price, pos.entry);
@@ -116,19 +120,33 @@ function trimLetRun(state, pos, price, cfg, now) {
 
   const trimSize = pos.size * (cfg.letRunTrimPct / 100);
   pos.size -= trimSize;
+  let trade = null;
+  let trimmedRaw = null;
+  if (trader.mode === "live" && pos.tokenAmountRaw) {
+    trimmedRaw = rawPercent(pos.tokenAmountRaw, cfg.letRunTrimPct);
+    trade = await trader.sell(pos, trimmedRaw);
+    pos.tokenAmountRaw = String(BigInt(pos.tokenAmountRaw) - BigInt(trimmedRaw));
+  }
   pos.lastTrimPrice = price;
   pos.lastTrimAt = now;
   pos.letRunTrims = (pos.letRunTrims || 0) + 1;
   const reason = highTrim ? "let_run_trim" : "let_run_time_trim";
-  state.closed.unshift({ ...pos, size: trimSize, exit: price, reason, pnlPct, closed: now });
+  state.closed.unshift({ ...pos, size: trimSize, tokenAmountRaw: trimmedRaw, exit: price, reason, pnlPct, closed: now, closeTrade: trade });
   state.closed = state.closed.slice(0, 300);
-  logDecision(state, { action: "trim", symbol: pos.symbol, reason, price, size: trimSize, remaining: pos.size, pnlPct });
+  logDecision(state, { action: "trim", symbol: pos.symbol, reason, price, size: trimSize, remaining: pos.size, pnlPct, signature: trade?.signature });
   return true;
 }
 
-function enter(state, pair, m, cfg) {
+async function enter(state, pair, m, cfg, trader) {
   const id = pairId(pair);
   const price = n(pair.priceUsd);
+  let trade = null;
+  try {
+    trade = await trader.buy(pair, cfg.tradeUsd);
+  } catch (error) {
+    logDecision(state, { action: "trade_error", symbol: pair.baseToken.symbol, phase: "buy", reason: error.message });
+    return;
+  }
   state.open[id] = {
     id,
     symbol: pair.baseToken.symbol,
@@ -147,10 +165,15 @@ function enter(state, pair, m, cfg) {
     letRunTrims: 0,
     score: m.score
   };
-  logDecision(state, { action: "enter", symbol: state.open[id].symbol, score: m.score, price });
+  if (trader.mode === "live") {
+    state.open[id].tokenMint = tokenMint(pair);
+    state.open[id].tokenAmountRaw = trade.outputAmountRaw;
+    state.open[id].entryTrade = trade;
+  }
+  logDecision(state, { action: "enter", symbol: state.open[id].symbol, score: m.score, price, signature: trade?.signature });
 }
 
-export function managePositions(state, pairs, cfg = CONFIG) {
+export async function managePositions(state, pairs, cfg = CONFIG, trader = createTrader()) {
   const byId = new Map(pairs.map((pair) => [pairId(pair), pair]));
   for (const [id, pos] of Object.entries(state.open)) {
     if (!requiredPositionOk(pos)) {
@@ -167,7 +190,13 @@ export function managePositions(state, pairs, cfg = CONFIG) {
         logDecision(state, { action: "skip_manage", symbol: pos.symbol, reason: "missing_let_run_quote" });
         continue;
       }
-      if (Date.now() - pos.opened >= cfg.maxHoldMs) close(state, id, null, "stale_no_quote");
+      if (Date.now() - pos.opened >= cfg.maxHoldMs) {
+        try {
+          await close(state, id, null, "stale_no_quote", trader);
+        } catch (error) {
+          logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "close", reason: error.message });
+        }
+      }
       continue;
     }
 
@@ -187,11 +216,19 @@ export function managePositions(state, pairs, cfg = CONFIG) {
 
     if (dropFromLastBuy <= -cfg.scaleDropPct && pos.scales < cfg.maxScales) {
       const add = cfg.tradeUsd * Math.pow(cfg.scaleRatio, pos.scales + 1);
+      let trade = null;
+      try {
+        trade = await trader.buy(pair, add);
+      } catch (error) {
+        logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "scale", reason: error.message });
+        continue;
+      }
       pos.entry = ((pos.entry * pos.size) + (price * add)) / (pos.size + add);
       pos.size += add;
       pos.scales += 1;
       pos.lastScalePrice = price;
-      logDecision(state, { action: "scale", symbol: pos.symbol, price, scales: pos.scales });
+      if (trader.mode === "live") pos.tokenAmountRaw = String(BigInt(pos.tokenAmountRaw || "0") + BigInt(trade.outputAmountRaw));
+      logDecision(state, { action: "scale", symbol: pos.symbol, price, scales: pos.scales, signature: trade?.signature });
       continue;
     }
 
@@ -199,21 +236,42 @@ export function managePositions(state, pairs, cfg = CONFIG) {
       pos.letRun = true;
       pos.lastTrimAt = now;
       logDecision(state, { action: "let_run", symbol: pos.symbol, pnlPct: pnl });
-    } else if (pos.letRun && trimLetRun(state, pos, price, cfg, now) && pos.size <= cfg.letRunMinUsd) {
-      close(state, id, price, "let_run_complete");
+    } else if (pos.letRun) {
+      try {
+        const trimmed = await trimLetRun(state, pos, price, cfg, now, trader);
+        if (trimmed && pos.size <= cfg.letRunMinUsd) {
+          await close(state, id, price, "let_run_complete", trader);
+        } else if (pnl <= 0) {
+          await close(state, id, price, "breakeven_stop", trader);
+        } else if (ageMs >= cfg.letRunMaxMs) {
+          await close(state, id, price, "max_hold", trader);
+        }
+      } catch (error) {
+        logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "let_run", reason: error.message });
+      }
     } else if (!pos.letRun && pnl >= cfg.takeProfitPct) {
-      close(state, id, price, "take_profit");
-    } else if (pos.letRun && pnl <= 0) {
-      close(state, id, price, "breakeven_stop");
+      try {
+        await close(state, id, price, "take_profit", trader);
+      } catch (error) {
+        logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "close", reason: error.message });
+      }
     } else if (!pos.letRun && pnl <= -cfg.stopLossPct) {
-      close(state, id, price, "stop_loss");
+      try {
+        await close(state, id, price, "stop_loss", trader);
+      } catch (error) {
+        logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "close", reason: error.message });
+      }
     } else if (ageMs >= (pos.letRun ? cfg.letRunMaxMs : cfg.maxHoldMs)) {
-      close(state, id, price, "max_hold");
+      try {
+        await close(state, id, price, "max_hold", trader);
+      } catch (error) {
+        logDecision(state, { action: "trade_error", symbol: pos.symbol, phase: "close", reason: error.message });
+      }
     }
   }
 }
 
-export function evaluateEntries(state, pairs, cfg = CONFIG) {
+export async function evaluateEntries(state, pairs, cfg = CONFIG, trader = createTrader()) {
   const ranked = pairs
     .map((pair) => ({ pair, metrics: score(pair, cfg) }))
     .sort((a, b) => b.metrics.score - a.metrics.score);
@@ -233,14 +291,14 @@ export function evaluateEntries(state, pairs, cfg = CONFIG) {
     };
     candidates.push(candidate);
     logDecision(state, { action: candidate.accepted ? "accept" : "reject", symbol: candidate.symbol, score: item.metrics.score, reasons });
-    if (candidate.accepted) enter(state, item.pair, item.metrics, cfg);
+    if (candidate.accepted) await enter(state, item.pair, item.metrics, cfg, trader);
   }
   return candidates.slice(0, 20);
 }
 
-export function summarize(state, pairs, cfg = CONFIG) {
-  managePositions(state, pairs, cfg);
-  const candidates = evaluateEntries(state, pairs, cfg);
+export async function summarize(state, pairs, cfg = CONFIG, trader = createTrader()) {
+  await managePositions(state, pairs, cfg, trader);
+  const candidates = await evaluateEntries(state, pairs, cfg, trader);
   recordPrices(state, pairs, cfg);
   state.lastScan = {
     at: new Date().toISOString(),

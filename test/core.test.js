@@ -34,21 +34,21 @@ function openPosition(symbol, letRun = false) {
   };
 }
 
-test("scores and enters a valid candidate", () => {
+test("scores and enters a valid candidate", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9, 0.95] } };
-  const candidates = evaluateEntries(state, [pair()]);
+  const candidates = await evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, true);
   assert.equal(Object.keys(state.open).length, 1);
 });
 
-test("rejects candidate that is not breaking recent high", () => {
+test("rejects candidate that is not breaking recent high", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [1, 1.05] } };
-  const candidates = evaluateEntries(state, [pair()]);
+  const candidates = await evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, false);
   assert.equal(candidates[0].reasons.includes("not_breaking_recent_high"), true);
 });
 
-test("let-run positions do not use entry slots", () => {
+test("let-run positions do not use entry slots", async () => {
   const state = {
     open: {
       "solana:a": openPosition("A", true),
@@ -59,12 +59,12 @@ test("let-run positions do not use entry slots", () => {
     decisions: [],
     prices: { "solana:pair1": [0.9] }
   };
-  const candidates = evaluateEntries(state, [pair()]);
+  const candidates = await evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, true);
   assert.equal(candidates[0].reasons.includes("max_open"), false);
 });
 
-test("normal positions still use entry slots", () => {
+test("normal positions still use entry slots", async () => {
   const state = {
     open: {
       "solana:a": openPosition("A"),
@@ -75,28 +75,28 @@ test("normal positions still use entry slots", () => {
     decisions: [],
     prices: { "solana:pair1": [0.9] }
   };
-  const candidates = evaluateEntries(state, [pair()]);
+  const candidates = await evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, false);
   assert.equal(candidates[0].reasons.includes("max_open"), true);
 });
 
-test("rejects overextended candidate", () => {
+test("rejects overextended candidate", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
-  const candidates = evaluateEntries(state, [pair({ priceChange: { m5: 200 } })]);
+  const candidates = await evaluateEntries(state, [pair({ priceChange: { m5: 200 } })]);
   assert.equal(candidates[0].accepted, false);
   assert.deepEqual(candidates[0].reasons, ["overextended_5m_move"]);
 });
 
-test("scales before stopping averaged position", () => {
+test("scales before stopping averaged position", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
-  evaluateEntries(state, [pair()]);
-  managePositions(state, [pair({ priceUsd: 0.88 })]);
+  await evaluateEntries(state, [pair()]);
+  await managePositions(state, [pair({ priceUsd: 0.88 })]);
   const pos = Object.values(state.open)[0];
   assert.equal(pos.scales, 1);
   assert.equal(state.closed.length, 0);
 });
 
-test("closes stale no quote without inventing exit price", () => {
+test("closes stale no quote without inventing exit price", async () => {
   const state = {
     open: {
       "solana:pair1": {
@@ -114,14 +114,14 @@ test("closes stale no quote without inventing exit price", () => {
     closed: [],
     decisions: []
   };
-  managePositions(state, []);
+  await managePositions(state, []);
   assert.equal(Object.keys(state.open).length, 0);
   assert.equal(state.closed[0].reason, "stale_no_quote");
   assert.equal(state.closed[0].exit, null);
   assert.equal(state.closed[0].pnlPct, null);
 });
 
-test("keeps let-run position open when quote is missing", () => {
+test("keeps let-run position open when quote is missing", async () => {
   const state = {
     open: {
       "solana:pair1": {
@@ -140,29 +140,29 @@ test("keeps let-run position open when quote is missing", () => {
     closed: [],
     decisions: []
   };
-  managePositions(state, []);
+  await managePositions(state, []);
   assert.equal(Object.keys(state.open).length, 1);
   assert.equal(state.closed.length, 0);
   assert.equal(Number.isFinite(state.open["solana:pair1"].staleSince), true);
 });
 
-test("take profit inside window enables let run and breakeven stop", () => {
+test("take profit inside window enables let run and breakeven stop", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
-  evaluateEntries(state, [pair()]);
-  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  await evaluateEntries(state, [pair()]);
+  await managePositions(state, [pair({ priceUsd: 1.1 })]);
   const pos = Object.values(state.open)[0];
   assert.equal(pos.letRun, true);
 
-  managePositions(state, [pair({ priceUsd: 1 })]);
+  await managePositions(state, [pair({ priceUsd: 1 })]);
   assert.equal(Object.keys(state.open).length, 0);
   assert.equal(state.closed[0].reason, "breakeven_stop");
 });
 
-test("let run trims remaining size at new highs", () => {
+test("let run trims remaining size at new highs", async () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
-  evaluateEntries(state, [pair()]);
-  managePositions(state, [pair({ priceUsd: 1.1 })]);
-  managePositions(state, [pair({ priceUsd: 1.25 })]);
+  await evaluateEntries(state, [pair()]);
+  await managePositions(state, [pair({ priceUsd: 1.1 })]);
+  await managePositions(state, [pair({ priceUsd: 1.25 })]);
   const pos = Object.values(state.open)[0];
   assert.equal(pos.letRun, true);
   assert.equal(pos.letRunTrims, 1);
@@ -173,7 +173,7 @@ test("let run trims remaining size at new highs", () => {
   assert.equal(Math.round(state.closed[0].pnlPct), 25);
 });
 
-test("let run trims by time if still profitable without a new high", () => {
+test("let run trims by time if still profitable without a new high", async () => {
   const state = {
     open: {
       "solana:pair1": {
@@ -195,7 +195,7 @@ test("let run trims by time if still profitable without a new high", () => {
     closed: [],
     decisions: []
   };
-  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  await managePositions(state, [pair({ priceUsd: 1.1 })]);
   const pos = Object.values(state.open)[0];
   assert.equal(pos.size, 40);
   assert.equal(pos.lastTrimPrice, 1.1);
@@ -204,7 +204,7 @@ test("let run trims by time if still profitable without a new high", () => {
   assert.equal(state.closed[0].size, 10);
 });
 
-test("take profit after window closes without let run", () => {
+test("take profit after window closes without let run", async () => {
   const state = {
     open: {
       "solana:pair1": {
@@ -223,7 +223,7 @@ test("take profit after window closes without let run", () => {
     closed: [],
     decisions: []
   };
-  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  await managePositions(state, [pair({ priceUsd: 1.1 })]);
   assert.equal(Object.keys(state.open).length, 0);
   assert.equal(state.closed[0].reason, "take_profit");
 });
