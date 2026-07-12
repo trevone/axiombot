@@ -53,7 +53,8 @@ test("closes stale no quote without inventing exit price", () => {
         peak: 1,
         size: 50,
         opened: Date.now() - CONFIG.maxHoldMs - 1,
-        scales: 0
+        scales: 0,
+        lastScalePrice: 1
       }
     },
     closed: [],
@@ -64,4 +65,40 @@ test("closes stale no quote without inventing exit price", () => {
   assert.equal(state.closed[0].reason, "stale_no_quote");
   assert.equal(state.closed[0].exit, null);
   assert.equal(state.closed[0].pnlPct, null);
+});
+
+test("take profit inside window enables let run and breakeven stop", () => {
+  const state = { open: {}, closed: [], decisions: [] };
+  evaluateEntries(state, [pair()]);
+  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  const pos = Object.values(state.open)[0];
+  assert.equal(pos.letRun, true);
+
+  managePositions(state, [pair({ priceUsd: 1 })]);
+  assert.equal(Object.keys(state.open).length, 0);
+  assert.equal(state.closed[0].reason, "breakeven_stop");
+});
+
+test("take profit after window closes without let run", () => {
+  const state = {
+    open: {
+      "solana:pair1": {
+        id: "solana:pair1",
+        symbol: "AAA",
+        entry: 1,
+        last: 1,
+        peak: 1,
+        size: 50,
+        opened: Date.now() - CONFIG.letRunWindowMs - 1,
+        scales: 0,
+        lastScalePrice: 1,
+        letRun: false
+      }
+    },
+    closed: [],
+    decisions: []
+  };
+  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  assert.equal(Object.keys(state.open).length, 0);
+  assert.equal(state.closed[0].reason, "take_profit");
 });

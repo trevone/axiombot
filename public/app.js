@@ -43,6 +43,7 @@ async function load() {
       <dt>Last</dt><dd>${money(p.last)}</dd>
       <dt>PnL</dt><dd>${pct(((p.last - p.entry) / p.entry) * 100)}</dd>
       <dt>Scales</dt><dd>${p.scales}</dd>
+      <dt>Let Run</dt><dd>${p.letRun ? "yes" : "no"}</dd>
     </dl>
     <a href="${p.url}" target="_blank" rel="noreferrer">Chart</a>
   `, "No open positions.");

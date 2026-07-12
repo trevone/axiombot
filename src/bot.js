@@ -6,6 +6,8 @@ export const CONFIG = {
   profileLimit: 30,
   maxOpen: 3,
   maxHoldMs: 20 * 60_000,
+  letRunWindowMs: 15 * 60_000,
+  letRunMaxMs: 6 * 60 * 60_000,
   tradeUsd: 50,
   allowedDexes: ["pumpswap", "raydium", "meteora"],
   minLiquidityUsd: 10_000,
@@ -19,8 +21,7 @@ export const CONFIG = {
   scaleDropPct: 7,
   maxScales: 5,
   scaleRatio: 1.3,
-  takeProfitPct: 10,
-  trailDropPct: 10
+  takeProfitPct: 10
 };
 
 const n = (value) => Number(value);
@@ -99,7 +100,7 @@ function enter(state, pair, m, cfg) {
     opened: Date.now(),
     scales: 0,
     lastScalePrice: price,
-    tpArmed: false,
+    letRun: false,
     score: m.score
   };
   logDecision(state, { action: "enter", symbol: state.open[id].symbol, score: m.score, price });
@@ -130,8 +131,8 @@ export function managePositions(state, pairs, cfg = CONFIG) {
     pos.last = price;
     pos.peak = Math.max(pos.peak, price);
     const pnl = pct(price, pos.entry);
+    const ageMs = Date.now() - pos.opened;
     const dropFromLastBuy = pct(price, pos.lastScalePrice);
-    const pullback = pct(price, pos.peak);
 
     if (dropFromLastBuy <= -cfg.scaleDropPct && pos.scales < cfg.maxScales) {
       const add = cfg.tradeUsd * Math.pow(cfg.scaleRatio, pos.scales + 1);
@@ -143,10 +144,18 @@ export function managePositions(state, pairs, cfg = CONFIG) {
       continue;
     }
 
-    if (pnl <= -cfg.stopLossPct) close(state, id, price, "stop_loss");
-    else if (Date.now() - pos.opened >= cfg.maxHoldMs) close(state, id, price, "max_hold");
-    else if (pnl >= cfg.takeProfitPct) pos.tpArmed = true;
-    if (state.open[id] && pos.tpArmed && pullback <= -cfg.trailDropPct) close(state, id, price, "take_profit_trail");
+    if (!pos.letRun && pnl >= cfg.takeProfitPct && ageMs <= cfg.letRunWindowMs) {
+      pos.letRun = true;
+      logDecision(state, { action: "let_run", symbol: pos.symbol, pnlPct: pnl });
+    } else if (!pos.letRun && pnl >= cfg.takeProfitPct) {
+      close(state, id, price, "take_profit");
+    } else if (pos.letRun && pnl <= 0) {
+      close(state, id, price, "breakeven_stop");
+    } else if (!pos.letRun && pnl <= -cfg.stopLossPct) {
+      close(state, id, price, "stop_loss");
+    } else if (ageMs >= (pos.letRun ? cfg.letRunMaxMs : cfg.maxHoldMs)) {
+      close(state, id, price, "max_hold");
+    }
   }
 }
 
