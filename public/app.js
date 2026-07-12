@@ -1,6 +1,8 @@
 const $ = (id) => document.querySelector(`#${id}`);
 const money = (v) => Number.isFinite(Number(v)) ? `$${Number(v).toFixed(Number(v) >= 1 ? 2 : 8)}` : "-";
 const pct = (v) => Number.isFinite(Number(v)) ? `${Number(v).toFixed(2)}%` : "-";
+const profit = (p) => Number.isFinite(Number(p.pnlPct)) && Number.isFinite(Number(p.size)) ? (Number(p.size) * Number(p.pnlPct)) / 100 : 0;
+const isTrim = (p) => p.reason === "let_run_trim" || p.reason === "let_run_time_trim";
 const ago = (iso) => {
   if (!iso) return "-";
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -26,6 +28,8 @@ async function load() {
   const { state, config } = await res.json();
   const open = Object.values(state.open || {});
   const activeOpen = open.filter((p) => !p.letRun).length;
+  const closed = state.closed || [];
+  const trimProfit = closed.filter(isTrim).reduce((sum, p) => sum + profit(p), 0);
   const candidates = state.lastScan?.candidates || [];
 
   $("summary").innerHTML = `
@@ -33,11 +37,14 @@ async function load() {
     <div class="metric"><span>Pairs</span><strong>${state.lastScan?.pairs ?? 0}</strong></div>
     <div class="metric"><span>Open</span><strong>${open.length}</strong></div>
     <div class="metric"><span>Slots</span><strong>${activeOpen}/${config.maxOpen}</strong></div>
-    <div class="metric"><span>Closed</span><strong>${state.closed?.length || 0}</strong></div>
+    <div class="metric"><span>Closed</span><strong>${closed.length}</strong></div>
+    <div class="metric"><span>Partial</span><strong>${money(trimProfit)}</strong></div>
     <div class="metric"><span>Mode</span><strong>paper</strong></div>
   `;
 
-  renderList("open", open, (p) => `
+  renderList("open", open, (p) => {
+    const realized = closed.filter((c) => isTrim(c) && c.id === p.id).reduce((sum, c) => sum + profit(c), 0);
+    return `
     <h3>${p.symbol}</h3>
     <p>${p.name || ""}</p>
     <dl>
@@ -45,12 +52,14 @@ async function load() {
       <dt>Last</dt><dd>${money(p.last)}</dd>
       <dt>PnL</dt><dd>${pct(((p.last - p.entry) / p.entry) * 100)}</dd>
       <dt>Size</dt><dd>${money(p.size)}</dd>
+      <dt>Realized</dt><dd>${money(realized)}</dd>
       <dt>Scales</dt><dd>${p.scales}</dd>
       <dt>Trims</dt><dd>${p.letRunTrims || 0}</dd>
       <dt>Let Run</dt><dd>${p.letRun ? "yes" : "no"}</dd>
     </dl>
     <a href="${p.url}" target="_blank" rel="noreferrer">Chart</a>
-  `, "No open positions.");
+  `;
+  }, "No open positions.");
 
   renderList("candidates", candidates.slice(0, 10), (c) => `
     <h3>${c.symbol}</h3>
@@ -70,10 +79,10 @@ async function load() {
     <small>${new Date(d.at).toLocaleString()}</small>
   `, "No decisions.");
 
-  renderList("closed", state.closed?.slice(0, 20) || [], (p) => `
+  renderList("closed", closed.slice(0, 20), (p) => `
     <h3>${p.symbol}</h3>
     <p>${p.reason}</p>
-    <dl><dt>PnL</dt><dd>${pct(p.pnlPct)}</dd><dt>Size</dt><dd>${money(p.size)}</dd><dt>Exit</dt><dd>${money(p.exit)}</dd></dl>
+    <dl><dt>PnL</dt><dd>${pct(p.pnlPct)}</dd><dt>Profit</dt><dd>${money(profit(p))}</dd><dt>Size</dt><dd>${money(p.size)}</dd><dt>Exit</dt><dd>${money(p.exit)}</dd></dl>
   `, "No closed positions.");
 }
 
