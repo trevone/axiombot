@@ -15,11 +15,11 @@ export const CONFIG = {
   minMoveM5Pct: 5,
   maxMoveM5Pct: 60,
   minScore: 70,
-  stopLossPct: 25,
-  scaleDropPct: 12,
-  maxScales: 2,
-  scaleRatio: 1,
-  takeProfitPct: 25,
+  stopLossPct: 70,
+  scaleDropPct: 7,
+  maxScales: 5,
+  scaleRatio: 1.3,
+  takeProfitPct: 10,
   trailDropPct: 10
 };
 
