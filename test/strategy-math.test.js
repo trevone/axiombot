@@ -165,7 +165,6 @@ test("paper trades close stale positions missing from latest scan after max hold
         entryAt: new Date(Date.now() - 30 * 60_000).toISOString(),
         sizeUsd: 10,
         score: 90,
-        maxHoldMinutes: 20,
         scaleIns: [],
         legs: [{ priceUsd: 1, sizeUsd: 10 }]
       }

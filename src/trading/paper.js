@@ -14,6 +14,12 @@ function holdMinutes(position) {
     : 0;
 }
 
+function maxHoldMinutes(position, paperConfig) {
+  const positionMaxHold = Number(position.maxHoldMinutes);
+  if (Number.isFinite(positionMaxHold) && positionMaxHold > 0) return positionMaxHold;
+  return paperConfig.maxHoldMinutes;
+}
+
 function closePaperPosition(state, key, position, exitPriceUsd, exitReason, extra = {}) {
   const pnlPct = position.entryPriceUsd > 0
     ? ((exitPriceUsd - position.entryPriceUsd) / position.entryPriceUsd) * 100
@@ -212,10 +218,11 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
   for (const [key, position] of Object.entries(state.openPositions)) {
     const pair = pairsByKey.get(key);
     const positionHoldMinutes = holdMinutes(position);
+    const positionMaxHoldMinutes = maxHoldMinutes(position, paperConfig);
 
     if (!pair) {
       const staleExitPriceUsd = numberOrZero(position.lastPriceUsd || position.entryPriceUsd);
-      if (positionHoldMinutes >= position.maxHoldMinutes && staleExitPriceUsd > 0) {
+      if (positionHoldMinutes >= positionMaxHoldMinutes && staleExitPriceUsd > 0) {
         closed.push(
           closePaperPosition(state, key, position, staleExitPriceUsd, "stale_no_quote", {
             staleSinceMinutes: round2(positionHoldMinutes)
@@ -256,7 +263,7 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
       !runnerActive &&
       peakPnlPct >= position.trailingStopActivationPct &&
       drawdownFromPeakPct <= -position.trailingStopPct;
-    const hitMaxHold = positionHoldMinutes >= position.maxHoldMinutes;
+    const hitMaxHold = positionHoldMinutes >= positionMaxHoldMinutes;
 
     if (hitTp && !runnerActive) {
       if (shouldLetTakeProfitRun(position, pair, pnlPct, paperConfig)) {
