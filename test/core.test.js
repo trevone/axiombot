@@ -1,0 +1,67 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { CONFIG, evaluateEntries, managePositions, score } from "../src/bot.js";
+
+function pair(overrides = {}) {
+  return {
+    chainId: "solana",
+    pairAddress: "pair1",
+    dexId: "pumpswap",
+    priceUsd: 1,
+    baseToken: { symbol: "AAA", name: "AAA" },
+    liquidity: { usd: 20_000 },
+    volume: { m5: 5_000 },
+    txns: { m5: { buys: 20, sells: 5 } },
+    priceChange: { m5: 10 },
+    url: "https://example.com",
+    ...overrides
+  };
+}
+
+test("scores and enters a valid candidate", () => {
+  const state = { open: {}, closed: [], decisions: [] };
+  const candidates = evaluateEntries(state, [pair()]);
+  assert.equal(candidates[0].accepted, true);
+  assert.equal(Object.keys(state.open).length, 1);
+});
+
+test("rejects overextended candidate", () => {
+  const state = { open: {}, closed: [], decisions: [] };
+  const candidates = evaluateEntries(state, [pair({ priceChange: { m5: 200 } })]);
+  assert.equal(candidates[0].accepted, false);
+  assert.deepEqual(candidates[0].reasons, ["overextended_5m_move"]);
+});
+
+test("scales before stopping averaged position", () => {
+  const state = { open: {}, closed: [], decisions: [] };
+  evaluateEntries(state, [pair()]);
+  managePositions(state, [pair({ priceUsd: 0.88 })]);
+  const pos = Object.values(state.open)[0];
+  assert.equal(pos.scales, 1);
+  assert.equal(state.closed.length, 0);
+});
+
+test("closes stale no quote without inventing exit price", () => {
+  const state = {
+    open: {
+      "solana:pair1": {
+        id: "solana:pair1",
+        symbol: "AAA",
+        entry: 1,
+        last: 1,
+        peak: 1,
+        size: 50,
+        opened: Date.now() - CONFIG.maxHoldMs - 1,
+        scales: 0
+      }
+    },
+    closed: [],
+    decisions: []
+  };
+  managePositions(state, []);
+  assert.equal(Object.keys(state.open).length, 0);
+  assert.equal(state.closed[0].reason, "stale_no_quote");
+  assert.equal(state.closed[0].exit, null);
+  assert.equal(state.closed[0].pnlPct, null);
+});

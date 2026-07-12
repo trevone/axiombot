@@ -3,101 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AxiomBot HUD</title>
+    <title>AxiomBot</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Paper Trading</p>
-        <h1>AxiomBot HUD</h1>
-      </div>
-      <div class="actions">
-        <span id="status-pill" class="status-pill">Loading</span>
-        <button id="refresh-button" type="button">Refresh</button>
-      </div>
+    <header>
+      <h1>AxiomBot</h1>
+      <button id="refresh">Refresh</button>
     </header>
-
     <main>
-      <nav class="tabs" aria-label="HUD sections">
-        <button class="tab active" type="button" data-tab="home">Home</button>
-        <button class="tab" type="button" data-tab="trades">Trades</button>
-        <button class="tab" type="button" data-tab="strategy">Strategy</button>
-      </nav>
-
-      <section class="tab-panel active" data-panel="home">
-      <section class="metrics" aria-label="Scanner metrics">
-        <div class="metric">
-          <span class="metric-label">Last Scan</span>
-          <strong id="last-scan">-</strong>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Scan Age</span>
-          <strong id="scan-age">-</strong>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Profiles</span>
-          <strong id="profiles-scanned">-</strong>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Pairs</span>
-          <strong id="pairs-found">-</strong>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Open</span>
-          <strong id="open-count">-</strong>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Closed</span>
-          <strong id="closed-count">-</strong>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>Top Candidates</h2>
-          <span id="candidate-count" class="muted">0 tracked</span>
-        </div>
-        <div id="candidates" class="grid-list"></div>
-      </section>
-      </section>
-
-      <section class="tab-panel" data-panel="trades">
-      <section class="panel">
-        <div class="section-heading">
-          <h2>Open Paper Trades</h2>
-          <span class="muted">TP / SL managed locally</span>
-        </div>
-        <div id="open-positions" class="position-list"></div>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>Recently Closed</h2>
-          <span class="muted">Latest 20 exits</span>
-        </div>
-        <div id="closed-positions" class="position-list compact"></div>
-      </section>
-      </section>
-
-      <section class="tab-panel" data-panel="strategy">
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <h2>Strategy</h2>
-              <span class="muted">PIN protected controls</span>
-            </div>
-            <div class="actions">
-              <button id="strategy-unlock" type="button">Unlock</button>
-              <button id="strategy-save" type="button" disabled>Save</button>
-            </div>
-          </div>
-          <div id="strategy-message" class="notice muted">Locked</div>
-          <div id="strategy-controls" class="settings-grid"></div>
-        </section>
-      </section>
+      <section id="summary"></section>
+      <h2>Open</h2>
+      <section id="open"></section>
+      <h2>Candidates</h2>
+      <section id="candidates"></section>
+      <h2>Decisions</h2>
+      <section id="decisions"></section>
+      <h2>Closed</h2>
+      <section id="closed"></section>
     </main>
-
     <script src="app.js" type="module"></script>
   </body>
 </html>

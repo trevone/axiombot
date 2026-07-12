@@ -1,98 +1,32 @@
 import express from "express";
-import { assertConfig, loadConfig } from "./config.js";
-import { lockControl, requireControl, unlockControl, controlStatus } from "./control-lock.js";
-import { scanOnce } from "./scanner.js";
-import { loadState } from "./state/store.js";
-import {
-  getStrategyConfig,
-  getStrategyConfigSchema,
-  updateStrategyConfig
-} from "./strategy/config-store.js";
+import { CONFIG, summarize } from "./bot.js";
+import { getSolanaPairs } from "./dex.js";
+import { loadState, saveState } from "./state.js";
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const STATE_FILE = "data/state.json";
+const PORT = 8795;
+let state = await loadState(STATE_FILE);
+let running = false;
 
-async function scannerLoop() {
-  while (true) {
-    const config = loadConfig();
-    assertConfig(config);
-    const result = await scanOnce(config);
-    console.log(JSON.stringify(result));
-    await sleep(config.scanner.intervalMs);
+async function tick() {
+  if (running) return;
+  running = true;
+  try {
+    const pairs = await getSolanaPairs(CONFIG.profileLimit);
+    summarize(state, pairs);
+    await saveState(STATE_FILE, state);
+    console.log(JSON.stringify(state.lastScan));
+  } catch (error) {
+    state.lastError = { at: new Date().toISOString(), message: error.message };
+    console.error(error);
+  } finally {
+    running = false;
   }
 }
 
-function startScannerLoop() {
-  scannerLoop().catch((error) => {
-    console.error(error);
-    setTimeout(startScannerLoop, 5_000);
-  });
-}
+const app = express();
+app.get("/api/status", (_req, res) => res.json({ config: CONFIG, state }));
 
-export function createServer() {
-  const app = express();
-  app.use(express.json({ limit: "64kb" }));
-
-  app.get("/api/status", async (_req, res, next) => {
-    try {
-      const config = loadConfig();
-      const state = await loadState(config.state.file);
-      res.json({
-        ok: true,
-        state,
-        health: state.health || null,
-        strategyConfig: getStrategyConfig(),
-        strategySchema: getStrategyConfigSchema()
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.get("/api/strategy-config", (_req, res) => {
-    res.json({
-      config: getStrategyConfig(),
-      schema: getStrategyConfigSchema()
-    });
-  });
-
-  app.post("/api/strategy-config", requireControl, (req, res) => {
-    res.json({
-      config: updateStrategyConfig(req.body || {}),
-      schema: getStrategyConfigSchema()
-    });
-  });
-
-  app.get("/api/hud-control/status", (_req, res) => {
-    res.json(controlStatus());
-  });
-
-  app.post("/api/hud-control/unlock", (req, res) => {
-    const result = unlockControl(req.body?.pin);
-    res.status(result.ok ? 200 : 401).json(result);
-  });
-
-  app.post("/api/hud-control/lock", (req, res) => {
-    res.json(lockControl(req.get("X-HUD-Control-Token")));
-  });
-
-  app.use((error, _req, res, _next) => {
-    console.error(error);
-    res.status(500).json({ error: error.message || "server_error" });
-  });
-
-  return app;
-}
-
-export function startServer() {
-  const port = Number(process.env.PORT || 8795);
-  startScannerLoop();
-  createServer().listen(port, "127.0.0.1", () => {
-    console.log(`AxiomBot API listening on 127.0.0.1:${port}`);
-  });
-}
-
-if (process.argv[1] && process.argv[1].endsWith("server.js")) {
-  startServer();
-}
+tick();
+setInterval(tick, CONFIG.scanMs);
+app.listen(PORT, "127.0.0.1", () => console.log(`axiombot ${PORT}`));
