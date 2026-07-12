@@ -25,6 +25,7 @@ export const CONFIG = {
   takeProfitPct: 10,
   letRunTrimStepPct: 25,
   letRunTrimPct: 20,
+  letRunTrimMaxWaitMs: 30 * 60_000,
   letRunMinUsd: 10
 };
 
@@ -104,18 +105,23 @@ function close(state, id, price, reason) {
   logDecision(state, { action: "close", symbol: pos.symbol, reason, pnlPct });
 }
 
-function trimLetRun(state, pos, price, cfg) {
+function trimLetRun(state, pos, price, cfg, now) {
   if (!good(pos.lastTrimPrice)) pos.lastTrimPrice = pos.entry;
-  if (pct(price, pos.lastTrimPrice) < cfg.letRunTrimStepPct) return false;
+  if (!good(pos.lastTrimAt)) pos.lastTrimAt = now;
+  const pnlPct = pct(price, pos.entry);
+  const highTrim = pct(price, pos.lastTrimPrice) >= cfg.letRunTrimStepPct;
+  const timeTrim = now - pos.lastTrimAt >= cfg.letRunTrimMaxWaitMs && pnlPct > 0;
+  if (!highTrim && !timeTrim) return false;
 
   const trimSize = pos.size * (cfg.letRunTrimPct / 100);
-  const pnlPct = pct(price, pos.entry);
   pos.size -= trimSize;
   pos.lastTrimPrice = price;
+  pos.lastTrimAt = now;
   pos.letRunTrims = (pos.letRunTrims || 0) + 1;
-  state.closed.unshift({ ...pos, size: trimSize, exit: price, reason: "let_run_trim", pnlPct, closed: Date.now() });
+  const reason = highTrim ? "let_run_trim" : "let_run_time_trim";
+  state.closed.unshift({ ...pos, size: trimSize, exit: price, reason, pnlPct, closed: now });
   state.closed = state.closed.slice(0, 300);
-  logDecision(state, { action: "trim", symbol: pos.symbol, price, size: trimSize, remaining: pos.size, pnlPct });
+  logDecision(state, { action: "trim", symbol: pos.symbol, reason, price, size: trimSize, remaining: pos.size, pnlPct });
   return true;
 }
 
@@ -136,6 +142,7 @@ function enter(state, pair, m, cfg) {
     lastScalePrice: price,
     letRun: false,
     lastTrimPrice: price,
+    lastTrimAt: null,
     letRunTrims: 0,
     score: m.score
   };
@@ -167,7 +174,8 @@ export function managePositions(state, pairs, cfg = CONFIG) {
     pos.last = price;
     pos.peak = Math.max(pos.peak, price);
     const pnl = pct(price, pos.entry);
-    const ageMs = Date.now() - pos.opened;
+    const now = Date.now();
+    const ageMs = now - pos.opened;
     const dropFromLastBuy = pct(price, pos.lastScalePrice);
 
     if (dropFromLastBuy <= -cfg.scaleDropPct && pos.scales < cfg.maxScales) {
@@ -182,8 +190,9 @@ export function managePositions(state, pairs, cfg = CONFIG) {
 
     if (!pos.letRun && pnl >= cfg.takeProfitPct && ageMs <= cfg.letRunWindowMs) {
       pos.letRun = true;
+      pos.lastTrimAt = now;
       logDecision(state, { action: "let_run", symbol: pos.symbol, pnlPct: pnl });
-    } else if (pos.letRun && trimLetRun(state, pos, price, cfg) && pos.size <= cfg.letRunMinUsd) {
+    } else if (pos.letRun && trimLetRun(state, pos, price, cfg, now) && pos.size <= cfg.letRunMinUsd) {
       close(state, id, price, "let_run_complete");
     } else if (!pos.letRun && pnl >= cfg.takeProfitPct) {
       close(state, id, price, "take_profit");

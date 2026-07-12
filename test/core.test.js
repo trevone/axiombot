@@ -101,6 +101,37 @@ test("let run trims remaining size at new highs", () => {
   assert.equal(Math.round(state.closed[0].pnlPct), 25);
 });
 
+test("let run trims by time if still profitable without a new high", () => {
+  const state = {
+    open: {
+      "solana:pair1": {
+        id: "solana:pair1",
+        symbol: "AAA",
+        entry: 1,
+        last: 1,
+        peak: 1.2,
+        size: 50,
+        opened: Date.now() - CONFIG.letRunWindowMs,
+        scales: 0,
+        lastScalePrice: 1,
+        letRun: true,
+        lastTrimPrice: 1.2,
+        lastTrimAt: Date.now() - CONFIG.letRunTrimMaxWaitMs - 1,
+        letRunTrims: 0
+      }
+    },
+    closed: [],
+    decisions: []
+  };
+  managePositions(state, [pair({ priceUsd: 1.1 })]);
+  const pos = Object.values(state.open)[0];
+  assert.equal(pos.size, 40);
+  assert.equal(pos.lastTrimPrice, 1.1);
+  assert.equal(pos.letRunTrims, 1);
+  assert.equal(state.closed[0].reason, "let_run_time_trim");
+  assert.equal(state.closed[0].size, 10);
+});
+
 test("take profit after window closes without let run", () => {
   const state = {
     open: {
