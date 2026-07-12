@@ -25,12 +25,14 @@ async function load() {
   const res = await fetch(`api/status?t=${Date.now()}`, { cache: "no-store" });
   const { state, config } = await res.json();
   const open = Object.values(state.open || {});
+  const activeOpen = open.filter((p) => !p.letRun).length;
   const candidates = state.lastScan?.candidates || [];
 
   $("summary").innerHTML = `
     <div class="metric"><span>Scan Age</span><strong>${ago(state.lastScan?.at)}</strong></div>
     <div class="metric"><span>Pairs</span><strong>${state.lastScan?.pairs ?? 0}</strong></div>
-    <div class="metric"><span>Open</span><strong>${open.length}/${config.maxOpen}</strong></div>
+    <div class="metric"><span>Open</span><strong>${open.length}</strong></div>
+    <div class="metric"><span>Slots</span><strong>${activeOpen}/${config.maxOpen}</strong></div>
     <div class="metric"><span>Closed</span><strong>${state.closed?.length || 0}</strong></div>
     <div class="metric"><span>Mode</span><strong>paper</strong></div>
   `;

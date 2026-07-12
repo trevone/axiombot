@@ -63,6 +63,7 @@ export function rejectReasons(pair, m, state, cfg = CONFIG) {
   const reasons = [];
   const samples = state.prices?.[pairId(pair)];
   const previousHigh = Array.isArray(samples) && samples.length > 0 ? Math.max(...samples) : null;
+  const activeOpen = Object.values(state.open).filter((pos) => !pos.letRun).length;
   if (!good(pair.priceUsd) || n(pair.priceUsd) <= 0) reasons.push("missing_price");
   if (previousHigh === null) reasons.push("missing_price_history");
   else if (n(pair.priceUsd) <= previousHigh) reasons.push("not_breaking_recent_high");
@@ -75,7 +76,7 @@ export function rejectReasons(pair, m, state, cfg = CONFIG) {
   if (!good(m.moveM5Pct) || m.moveM5Pct < cfg.minMoveM5Pct) reasons.push("weak_5m_move");
   if (good(m.moveM5Pct) && m.moveM5Pct > cfg.maxMoveM5Pct) reasons.push("overextended_5m_move");
   if (m.score < cfg.minScore) reasons.push("score_below_entry");
-  if (Object.keys(state.open).length >= cfg.maxOpen) reasons.push("max_open");
+  if (activeOpen >= cfg.maxOpen) reasons.push("max_open");
   if (state.open[pairId(pair)]) reasons.push("already_open");
   return reasons;
 }

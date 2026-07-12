@@ -19,6 +19,21 @@ function pair(overrides = {}) {
   };
 }
 
+function openPosition(symbol, letRun = false) {
+  return {
+    id: `solana:${symbol}`,
+    symbol,
+    entry: 1,
+    last: 1,
+    peak: 1,
+    size: 50,
+    opened: Date.now(),
+    scales: 0,
+    lastScalePrice: 1,
+    letRun
+  };
+}
+
 test("scores and enters a valid candidate", () => {
   const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9, 0.95] } };
   const candidates = evaluateEntries(state, [pair()]);
@@ -31,6 +46,38 @@ test("rejects candidate that is not breaking recent high", () => {
   const candidates = evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, false);
   assert.equal(candidates[0].reasons.includes("not_breaking_recent_high"), true);
+});
+
+test("let-run positions do not use entry slots", () => {
+  const state = {
+    open: {
+      "solana:a": openPosition("A", true),
+      "solana:b": openPosition("B", true),
+      "solana:c": openPosition("C", true)
+    },
+    closed: [],
+    decisions: [],
+    prices: { "solana:pair1": [0.9] }
+  };
+  const candidates = evaluateEntries(state, [pair()]);
+  assert.equal(candidates[0].accepted, true);
+  assert.equal(candidates[0].reasons.includes("max_open"), false);
+});
+
+test("normal positions still use entry slots", () => {
+  const state = {
+    open: {
+      "solana:a": openPosition("A"),
+      "solana:b": openPosition("B"),
+      "solana:c": openPosition("C")
+    },
+    closed: [],
+    decisions: [],
+    prices: { "solana:pair1": [0.9] }
+  };
+  const candidates = evaluateEntries(state, [pair()]);
+  assert.equal(candidates[0].accepted, false);
+  assert.equal(candidates[0].reasons.includes("max_open"), true);
 });
 
 test("rejects overextended candidate", () => {
