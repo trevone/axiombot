@@ -1,4 +1,4 @@
-const stateUrl = "state.json";
+const stateUrl = "api/status";
 const controlTokenKey = "axiombot-control-token";
 const refreshMs = 15_000;
 
@@ -6,6 +6,7 @@ const elements = {
   status: document.querySelector("#status-pill"),
   refresh: document.querySelector("#refresh-button"),
   lastScan: document.querySelector("#last-scan"),
+  scanAge: document.querySelector("#scan-age"),
   profilesScanned: document.querySelector("#profiles-scanned"),
   pairsFound: document.querySelector("#pairs-found"),
   openCount: document.querySelector("#open-count"),
@@ -107,6 +108,14 @@ function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString();
+}
+
+function formatDuration(ms) {
+  const number = Number(ms);
+  if (!Number.isFinite(number) || number < 0) return "-";
+  if (number < 60_000) return `${Math.round(number / 1000)}s`;
+  if (number < 3_600_000) return `${Math.round(number / 60_000)}m`;
+  return `${Math.round(number / 3_600_000)}h`;
 }
 
 function escapeHtml(value) {
@@ -425,6 +434,9 @@ function renderState(state) {
   const closedPositions = state.closedPositions || [];
 
   elements.lastScan.textContent = formatTime(lastScan.scannedAt);
+  elements.scanAge.textContent = lastScan.scannedAt
+    ? formatDuration(Date.now() - new Date(lastScan.scannedAt).getTime())
+    : "-";
   elements.profilesScanned.textContent = lastScan.profilesScanned ?? "-";
   elements.pairsFound.textContent = lastScan.pairsFound ?? "-";
   elements.openCount.textContent = openPositions.length;
@@ -444,7 +456,8 @@ async function loadState() {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    renderState(await response.json());
+    const result = await response.json();
+    renderState(result.state || result);
     setStatus("Live", "ok");
   } catch (error) {
     setStatus("State unavailable", "error");
