@@ -66,6 +66,13 @@ const strategyGroups = [
       "TAKE_PROFIT_MAX_PCT",
       "TAKE_PROFIT_MIN_PCT",
       "TAKE_PROFIT_MAP_MINUTES",
+      "TAKE_PROFIT_RUNNER_ENABLED",
+      "TAKE_PROFIT_RUNNER_MIN_SCORE",
+      "TAKE_PROFIT_RUNNER_MIN_BUY_SELL_RATIO",
+      "TAKE_PROFIT_RUNNER_MIN_M5_CHANGE_PCT",
+      "TAKE_PROFIT_RUNNER_LOCK_PROFIT_PCT",
+      "TAKE_PROFIT_RUNNER_TRAILING_STOP_PCT",
+      "TAKE_PROFIT_RUNNER_MAX_MINUTES",
       "STOP_LOSS_PCT",
       "TRAILING_STOP_PCT",
       "TRAILING_STOP_ACTIVATION_PCT",
@@ -239,7 +246,8 @@ function renderOpenPositions(positions) {
       detail("PnL", formatPercent(pnl), pnlClass),
       detail("Size", formatCurrency(position.sizeUsd)),
       detail("TP", formatPercent(position.takeProfitPct)),
-      detail("SL", formatPercent(-position.stopLossPct))
+      detail("SL", formatPercent(-position.stopLossPct)),
+      detail("Runner", position.takeProfitRunner?.active ? "on" : "off")
     );
 
     elements.openPositions.append(item);

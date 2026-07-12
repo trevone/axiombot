@@ -50,6 +50,13 @@ export const DEFAULT_STRATEGY_CONFIG = {
   TAKE_PROFIT_MAX_PCT: envNumber("TAKE_PROFIT_MAX_PCT", 30),
   TAKE_PROFIT_MIN_PCT: envNumber("TAKE_PROFIT_MIN_PCT", 12),
   TAKE_PROFIT_MAP_MINUTES: envNumber("TAKE_PROFIT_MAP_MINUTES", 15),
+  TAKE_PROFIT_RUNNER_ENABLED: envBoolean("TAKE_PROFIT_RUNNER_ENABLED", true),
+  TAKE_PROFIT_RUNNER_MIN_SCORE: envNumber("TAKE_PROFIT_RUNNER_MIN_SCORE", 85),
+  TAKE_PROFIT_RUNNER_MIN_BUY_SELL_RATIO: envNumber("TAKE_PROFIT_RUNNER_MIN_BUY_SELL_RATIO", 1.5),
+  TAKE_PROFIT_RUNNER_MIN_M5_CHANGE_PCT: envNumber("TAKE_PROFIT_RUNNER_MIN_M5_CHANGE_PCT", 8),
+  TAKE_PROFIT_RUNNER_LOCK_PROFIT_PCT: envNumber("TAKE_PROFIT_RUNNER_LOCK_PROFIT_PCT", 8),
+  TAKE_PROFIT_RUNNER_TRAILING_STOP_PCT: envNumber("TAKE_PROFIT_RUNNER_TRAILING_STOP_PCT", 7),
+  TAKE_PROFIT_RUNNER_MAX_MINUTES: envNumber("TAKE_PROFIT_RUNNER_MAX_MINUTES", 30),
   STOP_LOSS_PCT: envNumber("STOP_LOSS_PCT", 12),
   TRAILING_STOP_PCT: envNumber("TRAILING_STOP_PCT", 10),
   TRAILING_STOP_ACTIVATION_PCT: envNumber("TRAILING_STOP_ACTIVATION_PCT", 15),
@@ -85,6 +92,12 @@ export const NUMBER_RULES = {
   TAKE_PROFIT_MAX_PCT: { min: 0, max: 1000 },
   TAKE_PROFIT_MIN_PCT: { min: 0, max: 1000 },
   TAKE_PROFIT_MAP_MINUTES: { min: 1, max: 1440 },
+  TAKE_PROFIT_RUNNER_MIN_SCORE: { min: 0, max: 200, integer: true },
+  TAKE_PROFIT_RUNNER_MIN_BUY_SELL_RATIO: { min: 0, max: 100 },
+  TAKE_PROFIT_RUNNER_MIN_M5_CHANGE_PCT: { min: -100, max: 10_000 },
+  TAKE_PROFIT_RUNNER_LOCK_PROFIT_PCT: { min: 0, max: 1000 },
+  TAKE_PROFIT_RUNNER_TRAILING_STOP_PCT: { min: 0, max: 100 },
+  TAKE_PROFIT_RUNNER_MAX_MINUTES: { min: 1, max: 1440 },
   STOP_LOSS_PCT: { min: 0, max: 100 },
   TRAILING_STOP_PCT: { min: 0, max: 100 },
   TRAILING_STOP_ACTIVATION_PCT: { min: 0, max: 1000 },
@@ -93,7 +106,8 @@ export const NUMBER_RULES = {
 
 export const BOOLEAN_RULES = {
   REQUIRE_LIQUIDITY: true,
-  SCALE_IN_ENABLED: true
+  SCALE_IN_ENABLED: true,
+  TAKE_PROFIT_RUNNER_ENABLED: true
 };
 
 export const STRING_RULES = {
@@ -225,6 +239,13 @@ export function strategyConfigToRuntime(strategyConfig) {
       takeProfitMaxPct: strategyConfig.TAKE_PROFIT_MAX_PCT,
       takeProfitMinPct: strategyConfig.TAKE_PROFIT_MIN_PCT,
       takeProfitMapMinutes: strategyConfig.TAKE_PROFIT_MAP_MINUTES,
+      takeProfitRunnerEnabled: strategyConfig.TAKE_PROFIT_RUNNER_ENABLED,
+      takeProfitRunnerMinScore: strategyConfig.TAKE_PROFIT_RUNNER_MIN_SCORE,
+      takeProfitRunnerMinBuySellRatio: strategyConfig.TAKE_PROFIT_RUNNER_MIN_BUY_SELL_RATIO,
+      takeProfitRunnerMinM5ChangePct: strategyConfig.TAKE_PROFIT_RUNNER_MIN_M5_CHANGE_PCT,
+      takeProfitRunnerLockProfitPct: strategyConfig.TAKE_PROFIT_RUNNER_LOCK_PROFIT_PCT,
+      takeProfitRunnerTrailingStopPct: strategyConfig.TAKE_PROFIT_RUNNER_TRAILING_STOP_PCT,
+      takeProfitRunnerMaxMinutes: strategyConfig.TAKE_PROFIT_RUNNER_MAX_MINUTES,
       stopLossPct: strategyConfig.STOP_LOSS_PCT,
       trailingStopPct: strategyConfig.TRAILING_STOP_PCT,
       trailingStopActivationPct: strategyConfig.TRAILING_STOP_ACTIVATION_PCT,

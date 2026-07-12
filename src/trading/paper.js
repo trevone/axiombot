@@ -128,6 +128,58 @@ function maybeScaleIn(position, currentPriceUsd, paperConfig) {
   return scaleIn;
 }
 
+function currentBuySellRatio(pair) {
+  const buysM5 = numberOrZero(pair?.txns?.m5?.buys);
+  const sellsM5 = numberOrZero(pair?.txns?.m5?.sells);
+  return sellsM5 > 0 ? buysM5 / sellsM5 : buysM5;
+}
+
+function shouldLetTakeProfitRun(position, pair, pnlPct, paperConfig) {
+  if (!paperConfig.takeProfitRunnerEnabled) return false;
+  if (position.takeProfitRunner?.active || position.takeProfitRunner?.decidedAt) return false;
+  if (numberOrZero(position.score) < paperConfig.takeProfitRunnerMinScore) return false;
+  if (pnlPct < paperConfig.takeProfitRunnerLockProfitPct) return false;
+
+  const buySellRatio = currentBuySellRatio(pair);
+  const priceChangeM5Pct = numberOrZero(pair?.priceChange?.m5);
+  if (buySellRatio < paperConfig.takeProfitRunnerMinBuySellRatio) return false;
+  if (priceChangeM5Pct < paperConfig.takeProfitRunnerMinM5ChangePct) return false;
+
+  return true;
+}
+
+function armTakeProfitRunner(position, pair, pnlPct, currentPriceUsd, paperConfig) {
+  position.takeProfitRunner = {
+    active: true,
+    startedAt: new Date().toISOString(),
+    triggerPriceUsd: currentPriceUsd,
+    triggerPnlPct: round2(pnlPct),
+    lockProfitPct: paperConfig.takeProfitRunnerLockProfitPct,
+    trailingStopPct: paperConfig.takeProfitRunnerTrailingStopPct,
+    maxMinutes: paperConfig.takeProfitRunnerMaxMinutes,
+    decision: "let_run",
+    decisionInputs: {
+      score: position.score,
+      buySellRatio: round2(currentBuySellRatio(pair)),
+      priceChangeM5Pct: numberOrZero(pair?.priceChange?.m5)
+    }
+  };
+}
+
+function rejectTakeProfitRunner(position, pair, pnlPct) {
+  position.takeProfitRunner = {
+    active: false,
+    decidedAt: new Date().toISOString(),
+    decision: "take_profit",
+    decisionInputs: {
+      score: position.score,
+      buySellRatio: round2(currentBuySellRatio(pair)),
+      priceChangeM5Pct: numberOrZero(pair?.priceChange?.m5),
+      pnlPct: round2(pnlPct)
+    }
+  };
+}
+
 export function updatePaperTrades(state, pairsByKey, paperConfig) {
   const closed = [];
 
@@ -151,15 +203,59 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
     const holdMinutes = (Date.now() - new Date(position.entryAt).getTime()) / 60_000;
     const hitTp = pnlPct >= position.takeProfitPct;
     const hitSl = pnlPct <= -position.stopLossPct;
+    const runner = position.takeProfitRunner;
+    const runnerActive = Boolean(runner?.active);
+    const runnerStartedAt = runnerActive ? new Date(runner.startedAt).getTime() : null;
+    const runnerMinutes = Number.isFinite(runnerStartedAt)
+      ? Math.max(0, (Date.now() - runnerStartedAt) / 60_000)
+      : 0;
+    const hitRunnerProfitFloor =
+      runnerActive && pnlPct <= numberOrZero(runner.lockProfitPct);
+    const hitRunnerTrailingStop =
+      runnerActive && drawdownFromPeakPct <= -numberOrZero(runner.trailingStopPct);
+    const hitRunnerMaxMinutes =
+      runnerActive && runnerMinutes >= numberOrZero(runner.maxMinutes);
     const hitTrailingStop =
+      !runnerActive &&
       peakPnlPct >= position.trailingStopActivationPct &&
       drawdownFromPeakPct <= -position.trailingStopPct;
     const hitMaxHold = holdMinutes >= position.maxHoldMinutes;
 
-    if (!hitTp && !hitSl && !hitTrailingStop && !hitMaxHold) continue;
+    if (hitTp && !runnerActive) {
+      if (shouldLetTakeProfitRun(position, pair, pnlPct, paperConfig)) {
+        armTakeProfitRunner(position, pair, pnlPct, currentPriceUsd, paperConfig);
+        continue;
+      }
+
+      rejectTakeProfitRunner(position, pair, pnlPct);
+    }
+
+    if (
+      !(hitTp && !runnerActive) &&
+      !hitSl &&
+      !hitTrailingStop &&
+      !hitRunnerProfitFloor &&
+      !hitRunnerTrailingStop &&
+      !hitRunnerMaxMinutes &&
+      !hitMaxHold
+    ) {
+      continue;
+    }
 
     const exitReason =
-      hitTp ? "take_profit" : hitSl ? "stop_loss" : hitTrailingStop ? "trailing_stop" : "max_hold";
+      hitTp && !runnerActive
+        ? "take_profit"
+        : hitSl
+          ? "stop_loss"
+          : hitRunnerProfitFloor
+            ? "runner_profit_floor"
+            : hitRunnerTrailingStop
+              ? "runner_trailing_stop"
+              : hitRunnerMaxMinutes
+                ? "runner_timeout"
+                : hitTrailingStop
+                  ? "trailing_stop"
+                  : "max_hold";
 
     const closedPosition = {
       ...position,
