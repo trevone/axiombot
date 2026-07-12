@@ -5,6 +5,7 @@ export const CONFIG = {
   scanMs: 30_000,
   profileLimit: 30,
   maxOpen: 3,
+  breakoutSamples: 10,
   maxHoldMs: 20 * 60_000,
   letRunWindowMs: 15 * 60_000,
   letRunMaxMs: 6 * 60 * 60_000,
@@ -56,7 +57,11 @@ export function score(pair, cfg = CONFIG) {
 
 export function rejectReasons(pair, m, state, cfg = CONFIG) {
   const reasons = [];
+  const samples = state.prices?.[pairId(pair)];
+  const previousHigh = Array.isArray(samples) && samples.length > 0 ? Math.max(...samples) : null;
   if (!good(pair.priceUsd) || n(pair.priceUsd) <= 0) reasons.push("missing_price");
+  if (previousHigh === null) reasons.push("missing_price_history");
+  else if (n(pair.priceUsd) <= previousHigh) reasons.push("not_breaking_recent_high");
   if (!pair.baseToken?.symbol) reasons.push("missing_symbol");
   if (!cfg.allowedDexes.includes(pair.dexId)) reasons.push("dex_not_allowed");
   if (!good(m.liquidityUsd) || m.liquidityUsd < cfg.minLiquidityUsd) reasons.push("low_liquidity");
@@ -69,6 +74,17 @@ export function rejectReasons(pair, m, state, cfg = CONFIG) {
   if (Object.keys(state.open).length >= cfg.maxOpen) reasons.push("max_open");
   if (state.open[pairId(pair)]) reasons.push("already_open");
   return reasons;
+}
+
+function recordPrices(state, pairs, cfg) {
+  if (!state.prices) state.prices = {};
+  for (const pair of pairs) {
+    const price = read(pair.priceUsd);
+    if (price === null || price <= 0) continue;
+    const id = pairId(pair);
+    const samples = Array.isArray(state.prices[id]) ? state.prices[id] : [];
+    state.prices[id] = [...samples, price].slice(-cfg.breakoutSamples);
+  }
 }
 
 function requiredPositionOk(pos) {
@@ -187,6 +203,7 @@ export function evaluateEntries(state, pairs, cfg = CONFIG) {
 export function summarize(state, pairs, cfg = CONFIG) {
   managePositions(state, pairs, cfg);
   const candidates = evaluateEntries(state, pairs, cfg);
+  recordPrices(state, pairs, cfg);
   state.lastScan = {
     at: new Date().toISOString(),
     pairs: pairs.length,

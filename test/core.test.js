@@ -20,21 +20,28 @@ function pair(overrides = {}) {
 }
 
 test("scores and enters a valid candidate", () => {
-  const state = { open: {}, closed: [], decisions: [] };
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9, 0.95] } };
   const candidates = evaluateEntries(state, [pair()]);
   assert.equal(candidates[0].accepted, true);
   assert.equal(Object.keys(state.open).length, 1);
 });
 
+test("rejects candidate that is not breaking recent high", () => {
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [1, 1.05] } };
+  const candidates = evaluateEntries(state, [pair()]);
+  assert.equal(candidates[0].accepted, false);
+  assert.equal(candidates[0].reasons.includes("not_breaking_recent_high"), true);
+});
+
 test("rejects overextended candidate", () => {
-  const state = { open: {}, closed: [], decisions: [] };
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
   const candidates = evaluateEntries(state, [pair({ priceChange: { m5: 200 } })]);
   assert.equal(candidates[0].accepted, false);
   assert.deepEqual(candidates[0].reasons, ["overextended_5m_move"]);
 });
 
 test("scales before stopping averaged position", () => {
-  const state = { open: {}, closed: [], decisions: [] };
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
   evaluateEntries(state, [pair()]);
   managePositions(state, [pair({ priceUsd: 0.88 })]);
   const pos = Object.values(state.open)[0];
@@ -68,7 +75,7 @@ test("closes stale no quote without inventing exit price", () => {
 });
 
 test("take profit inside window enables let run and breakeven stop", () => {
-  const state = { open: {}, closed: [], decisions: [] };
+  const state = { open: {}, closed: [], decisions: [], prices: { "solana:pair1": [0.9] } };
   evaluateEntries(state, [pair()]);
   managePositions(state, [pair({ priceUsd: 1.1 })]);
   const pos = Object.values(state.open)[0];
