@@ -148,3 +148,35 @@ test("take profit runner lets strong trades run and exits on runner trail", () =
   assert.equal(secondClosed.length, 1);
   assert.equal(secondClosed[0].exitReason, "runner_trailing_stop");
 });
+
+test("paper trades close stale positions missing from latest scan after max hold", () => {
+  const config = strategyConfigToRuntime(
+    normalizeStrategyConfig({
+      MAX_HOLD_MINUTES: 20
+    })
+  ).paper;
+  const state = {
+    openPositions: {
+      "solana:stale": {
+        id: "solana:stale",
+        entryPriceUsd: 1,
+        lastPriceUsd: 0.8,
+        peakPriceUsd: 1,
+        entryAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+        sizeUsd: 10,
+        score: 90,
+        maxHoldMinutes: 20,
+        scaleIns: [],
+        legs: [{ priceUsd: 1, sizeUsd: 10 }]
+      }
+    },
+    closedPositions: []
+  };
+
+  const closed = updatePaperTrades(state, new Map(), config);
+
+  assert.equal(closed.length, 1);
+  assert.equal(closed[0].exitReason, "stale_no_quote");
+  assert.equal(closed[0].realizedPnlPct, -20);
+  assert.deepEqual(Object.keys(state.openPositions), []);
+});

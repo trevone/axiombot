@@ -7,6 +7,32 @@ function numberOrZero(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function holdMinutes(position) {
+  const entryAt = new Date(position.entryAt).getTime();
+  return Number.isFinite(entryAt)
+    ? Math.max(0, (Date.now() - entryAt) / 60_000)
+    : 0;
+}
+
+function closePaperPosition(state, key, position, exitPriceUsd, exitReason, extra = {}) {
+  const pnlPct = position.entryPriceUsd > 0
+    ? ((exitPriceUsd - position.entryPriceUsd) / position.entryPriceUsd) * 100
+    : 0;
+  const closedPosition = {
+    ...position,
+    ...extra,
+    exitPriceUsd,
+    exitAt: new Date().toISOString(),
+    exitReason,
+    realizedPnlPct: Number(pnlPct.toFixed(2)),
+    realizedPnlUsd: Number(((position.sizeUsd * pnlPct) / 100).toFixed(2))
+  };
+
+  delete state.openPositions[key];
+  state.closedPositions.unshift(closedPosition);
+  return closedPosition;
+}
+
 export function enterPaperTrade(state, profile, pair, momentum, paperConfig) {
   const key = pairKey(pair);
 
@@ -185,7 +211,19 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
 
   for (const [key, position] of Object.entries(state.openPositions)) {
     const pair = pairsByKey.get(key);
-    if (!pair) continue;
+    const positionHoldMinutes = holdMinutes(position);
+
+    if (!pair) {
+      const staleExitPriceUsd = numberOrZero(position.lastPriceUsd || position.entryPriceUsd);
+      if (positionHoldMinutes >= position.maxHoldMinutes && staleExitPriceUsd > 0) {
+        closed.push(
+          closePaperPosition(state, key, position, staleExitPriceUsd, "stale_no_quote", {
+            staleSinceMinutes: round2(positionHoldMinutes)
+          })
+        );
+      }
+      continue;
+    }
 
     const currentPriceUsd = numberOrZero(pair.priceUsd);
     if (currentPriceUsd <= 0) continue;
@@ -200,7 +238,6 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
 
     const peakPnlPct = ((position.peakPriceUsd - position.entryPriceUsd) / position.entryPriceUsd) * 100;
     const drawdownFromPeakPct = ((currentPriceUsd - position.peakPriceUsd) / position.peakPriceUsd) * 100;
-    const holdMinutes = (Date.now() - new Date(position.entryAt).getTime()) / 60_000;
     const hitTp = pnlPct >= position.takeProfitPct;
     const hitSl = pnlPct <= -position.stopLossPct;
     const runner = position.takeProfitRunner;
@@ -219,7 +256,7 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
       !runnerActive &&
       peakPnlPct >= position.trailingStopActivationPct &&
       drawdownFromPeakPct <= -position.trailingStopPct;
-    const hitMaxHold = holdMinutes >= position.maxHoldMinutes;
+    const hitMaxHold = positionHoldMinutes >= position.maxHoldMinutes;
 
     if (hitTp && !runnerActive) {
       if (shouldLetTakeProfitRun(position, pair, pnlPct, paperConfig)) {
@@ -257,17 +294,7 @@ export function updatePaperTrades(state, pairsByKey, paperConfig) {
                   ? "trailing_stop"
                   : "max_hold";
 
-    const closedPosition = {
-      ...position,
-      exitPriceUsd: currentPriceUsd,
-      exitAt: new Date().toISOString(),
-      exitReason,
-      realizedPnlPct: Number(pnlPct.toFixed(2)),
-      realizedPnlUsd: Number(((position.sizeUsd * pnlPct) / 100).toFixed(2))
-    };
-
-    delete state.openPositions[key];
-    state.closedPositions.unshift(closedPosition);
+    const closedPosition = closePaperPosition(state, key, position, currentPriceUsd, exitReason);
     closed.push(closedPosition);
   }
 
