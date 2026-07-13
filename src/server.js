@@ -36,7 +36,17 @@ app.get("/api/status", async (_req, res) => {
   } catch (error) {
     wallet = { configured: true, address: null, sol: null, error: error.message };
   }
-  res.json({ config: CONFIG, wallet, state });
+  res.json({
+    config: CONFIG,
+    wallet,
+    state: {
+      open: state.open || {},
+      closed: (state.closed || []).slice(0, 300),
+      decisions: (state.decisions || []).slice(0, 300),
+      lastScan: state.lastScan || null,
+      lastError: state.lastError || null
+    }
+  });
 });
 
 tick();
