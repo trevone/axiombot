@@ -1,4 +1,5 @@
 import { pairId } from "./dex.js";
+import { classifyMomentum, observeMomentum } from "./momentum.js";
 import { logDecision } from "./state.js";
 import { createTrader, rawPercent, tokenMint } from "./trader.js";
 
@@ -28,6 +29,26 @@ export const CONFIG = {
   letRunTrimPct: 20,
   letRunTrimMaxWaitMs: 30 * 60_000,
   letRunMinUsd: 10,
+  momentumHistoryMs: 30 * 60_000,
+  momentumMinHistorySamples: 3,
+  pumpMinLiquidityUsd: 25_000,
+  pumpMinM5VolumeUsd: 5_000,
+  pumpMinM5Txns: 30,
+  pumpMinH1Txns: 100,
+  pumpMinM5PricePct: 2,
+  pumpMinH1PricePct: 8,
+  pumpMinBuyRatio: 0.52,
+  pumpMinM5Turnover: 0.05,
+  pumpActiveVolumeAcceleration: 1.5,
+  pumpActiveTxnAcceleration: 1.25,
+  pumpActiveMaxDrawdownPct: -10,
+  pumpExtendedH1Pct: 100,
+  pumpExtendedM5Pct: 25,
+  pumpExtendedObservedMultiple: 3,
+  pumpExtendedTurnover: 1,
+  pumpCoolingBuyRatio: 0.48,
+  pumpCoolingAcceleration: 0.65,
+  pumpCoolingDrawdownPct: -12,
   tradingMode: process.env.TRADING_MODE === "live" ? "live" : "paper"
 };
 
@@ -279,6 +300,7 @@ export async function evaluateEntries(state, pairs, cfg = CONFIG, trader = creat
   const candidates = [];
   for (const item of ranked) {
     const reasons = rejectReasons(item.pair, item.metrics, state, cfg);
+    const momentum = classifyMomentum(item.pair, state, cfg);
     const candidate = {
       id: pairId(item.pair),
       symbol: item.pair.baseToken?.symbol ? item.pair.baseToken.symbol : "",
@@ -286,9 +308,12 @@ export async function evaluateEntries(state, pairs, cfg = CONFIG, trader = creat
       url: item.pair.url,
       price: good(item.pair.priceUsd) ? n(item.pair.priceUsd) : null,
       metrics: item.metrics,
+      momentum,
       accepted: reasons.length === 0,
       reasons
     };
+    state.momentum ||= {};
+    state.momentum[candidate.id] = momentum;
     candidates.push(candidate);
     logDecision(state, { action: candidate.accepted ? "accept" : "reject", symbol: candidate.symbol, score: item.metrics.score, reasons });
     if (candidate.accepted) await enter(state, item.pair, item.metrics, cfg, trader);
@@ -298,6 +323,7 @@ export async function evaluateEntries(state, pairs, cfg = CONFIG, trader = creat
 
 export async function summarize(state, pairs, cfg = CONFIG, trader = createTrader()) {
   await managePositions(state, pairs, cfg, trader);
+  observeMomentum(state, pairs, cfg);
   const candidates = await evaluateEntries(state, pairs, cfg, trader);
   recordPrices(state, pairs, cfg);
   state.lastScan = {

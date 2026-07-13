@@ -1,6 +1,7 @@
 const $ = (id) => document.querySelector(`#${id}`);
 const money = (v) => Number.isFinite(Number(v)) ? `$${Number(v).toFixed(Number(v) >= 1 ? 2 : 8)}` : "-";
 const pct = (v) => Number.isFinite(Number(v)) ? `${Number(v).toFixed(2)}%` : "-";
+const x = (v) => Number.isFinite(Number(v)) ? `${Number(v).toFixed(2)}x` : "-";
 const profit = (p) => Number.isFinite(Number(p.pnlPct)) && Number.isFinite(Number(p.size)) ? (Number(p.size) * Number(p.pnlPct)) / 100 : 0;
 const isTrim = (p) => p.reason === "let_run_trim" || p.reason === "let_run_time_trim";
 const ago = (iso) => {
@@ -68,10 +69,17 @@ async function load() {
     <p>${c.accepted ? "accepted" : c.reasons.join(", ")}</p>
     <dl>
       <dt>Score</dt><dd>${c.metrics.score}</dd>
+      <dt>Signal</dt><dd>${c.momentum?.classification || "-"}</dd>
+      <dt>Pump</dt><dd>${c.momentum?.score ?? "-"}</dd>
       <dt>Price</dt><dd>${money(c.price)}</dd>
       <dt>5m Move</dt><dd>${pct(c.metrics.moveM5Pct)}</dd>
       <dt>5m Volume</dt><dd>${money(c.metrics.volumeM5Usd)}</dd>
+      <dt>Vol Accel</dt><dd>${x(c.momentum?.facts?.volumeAcceleration)}</dd>
+      <dt>Txn Accel</dt><dd>${x(c.momentum?.facts?.transactionAcceleration)}</dd>
+      <dt>Buy Ratio</dt><dd>${pct((c.momentum?.facts ? c.metrics.buysM5 / Math.max(1, c.metrics.buysM5 + c.metrics.sellsM5) : null) * 100)}</dd>
+      <dt>15m DD</dt><dd>${pct(c.momentum?.facts?.drawdownFrom15mHigh)}</dd>
     </dl>
+    <p>${[...(c.momentum?.reasons || []), ...(c.momentum?.warnings || [])].join(", ")}</p>
     <a href="${c.url}" target="_blank" rel="noreferrer">Chart</a>
   `, "No candidates.");
 

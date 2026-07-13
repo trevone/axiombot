@@ -8,7 +8,7 @@
     "start": "node src/index.js",
     "scan": "node src/index.js",
     "server": "node src/server.js",
-    "check": "node --check src/index.js && node --check src/server.js && node --check src/bot.js && node --check src/dex.js && node --check src/state.js && node --check src/wallet.js && node --check src/jupiter.js && node --check src/trader.js && node --check public/app.js",
+    "check": "node --check src/index.js && node --check src/server.js && node --check src/bot.js && node --check src/dex.js && node --check src/state.js && node --check src/momentum.js && node --check src/wallet.js && node --check src/jupiter.js && node --check src/trader.js && node --check public/app.js",
     "test": "node --test",
     "smoke:vps": "bash scripts/smoke-vps.sh"
   },

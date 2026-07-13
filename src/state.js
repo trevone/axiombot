@@ -6,6 +6,8 @@ export function emptyState() {
     open: {},
     closed: [],
     prices: {},
+    observations: {},
+    momentum: {},
     decisions: [],
     lastScan: null
   };
