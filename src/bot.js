@@ -82,7 +82,7 @@ export function score(pair, cfg = CONFIG) {
   return { ...m, score: Math.round(score) };
 }
 
-export function rejectReasons(pair, m, state, cfg = CONFIG) {
+export function rejectReasons(pair, m, state, cfg = CONFIG, momentum = null) {
   const reasons = [];
   const samples = state.prices?.[pairId(pair)];
   const previousHigh = Array.isArray(samples) && samples.length > 0 ? Math.max(...samples) : null;
@@ -98,6 +98,7 @@ export function rejectReasons(pair, m, state, cfg = CONFIG) {
   if (!good(m.buySellRatio) || m.buySellRatio < cfg.minBuySellRatio) reasons.push("weak_buy_sell_ratio");
   if (!good(m.moveM5Pct) || m.moveM5Pct < cfg.minMoveM5Pct) reasons.push("weak_5m_move");
   if (good(m.moveM5Pct) && m.moveM5Pct > cfg.maxMoveM5Pct) reasons.push("overextended_5m_move");
+  if (momentum?.classification !== "ACTIVE_PUMP") reasons.push("not_active_pump");
   if (m.score < cfg.minScore) reasons.push("score_below_entry");
   if (activeOpen >= cfg.maxOpen) reasons.push("max_open");
   if (state.open[pairId(pair)]) reasons.push("already_open");
@@ -299,8 +300,8 @@ export async function evaluateEntries(state, pairs, cfg = CONFIG, trader = creat
 
   const candidates = [];
   for (const item of ranked) {
-    const reasons = rejectReasons(item.pair, item.metrics, state, cfg);
     const momentum = classifyMomentum(item.pair, state, cfg);
+    const reasons = rejectReasons(item.pair, item.metrics, state, cfg, momentum);
     const candidate = {
       id: pairId(item.pair),
       symbol: item.pair.baseToken?.symbol ? item.pair.baseToken.symbol : "",
