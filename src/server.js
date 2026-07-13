@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "node:path";
 import { CONFIG, summarize } from "./bot.js";
 import { getSolanaPairs } from "./dex.js";
 import { loadState, saveState } from "./state.js";
@@ -27,6 +28,7 @@ async function tick() {
 }
 
 const app = express();
+app.use(express.static(path.resolve("public")));
 app.get("/api/status", async (_req, res) => {
   let wallet = { configured: false, address: null, sol: null };
   try {
